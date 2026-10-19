@@ -1,15 +1,16 @@
 # Robotar agricultural simulation workspace
 
-This workspace isolates two third-party agricultural robot simulations from the future Robotar ROS 2 packages. Project-owned files live under `/home/memo/projects/robotar`; ROS and other APT dependencies remain in their standard system locations.
+This workspace contains the original Robotar olive-harvesting simulation plus two isolated third-party agricultural references. Project-owned files live under `/home/memo/projects/robotar`; ROS and other APT dependencies remain in their standard system locations.
 
 ## Verified status
 
 | Simulation | Environment | Verified result |
 |---|---|---|
+| **Robotar olive platform** | Native ROS 2 Jazzy, Gazebo Harmonic, NVIDIA GTX 1650 | Builds successfully; drive, arm, comb and gripper controllers run; the scripted mission drives 2.952/3.000 m, confirms comb/branch contact, detaches all 6 targeted olives, collects all 6 in the catch region and retracts. The no-contact mode blocks detachment and fails safely. GUI and headless runs passed. |
 | Panther + Franka FR3 tomato harvesting | Native ROS 2 Jazzy, Gazebo Harmonic | Builds successfully; robot/controllers and sensors run; NVIDIA Gazebo rendering and CUDA YOLO were confirmed by `nvidia-smi`; tomato mapping, Nav2 and MoveIt goals run. A CPU run reached the first harvest-approach trajectory. A completed pick and basket drop were not tested. |
 | Amiga + Kinova orchard | Dockerized ROS 2 Humble, Gazebo Fortress | Minimal image and packages build; one robot spawns; base/arm/gripper controllers and sensors run; MoveIt homing completes; Gazebo GUI is available through noVNC. |
 
-Both simulations were stopped after verification. No demo containers or ROS/Gazebo demo processes are left running.
+All verification workloads were stopped after testing. No demo containers or ROS/Gazebo demo processes should be left running.
 
 ## Layout
 
@@ -19,7 +20,9 @@ docker/amiga/compose.yaml    Isolated Amiga/noVNC runtime
 scripts/                     Dependency, build, run and stop entry points
 third_party/                 Third-party source checkouts
 venvs/yolo/                  Project-local CPU/CUDA inference environment
-ws/src/                      Future Robotar packages only
+ws/src/robotar_description/  Original rover, 6-DOF arm, sensors and tools
+ws/src/robotar_gazebo/       Generated olive orchard, controllers and bridges
+ws/src/robotar_mission/      Closed-loop drive and harvest state machine
 data/logs/                   Build and runtime evidence
 ```
 
@@ -39,6 +42,55 @@ TOMATO_DEVICE=cuda:0 ./scripts/tomato_setup_yolo.sh
 The tomato dependency installer requires root and finishes with a `rosdep check`; it must report that all system dependencies are satisfied. The NVIDIA installer handles DKMS and the currently running kernel's headers. Verify the driver with `nvidia-smi` before selecting CUDA.
 
 The YOLO setup supports CPU and CUDA PyTorch 2.14.1 builds and uses a NumPy/OpenCV combination compatible with Jazzy's `cv_bridge`. The current environment uses `torch 2.14.1+cu130` on the GTX 1650. To select a CPU environment instead, run `TOMATO_DEVICE=cpu ./scripts/tomato_setup_yolo.sh`.
+
+## Robotar olive-harvesting platform
+
+The first-party MVP is an original four-wheel skid-steer field rover with a side-mounted 6-DOF arm, mast RGB-D camera, chassis IMU and launch-selectable tools. The `comb` tool has twin counter-rotating harvesting banks; the `gripper` tool proves the interchangeable flange/controller interface. The generated orchard contains two rows of low-poly olive trees, one instrumented branch, six dynamic olives and a catch net.
+
+Single sources of truth:
+
+- `ws/src/robotar_description/config/physical.yaml` — robot geometry, joints, limits, sensors and topic names.
+- `ws/src/robotar_gazebo/config/orchard.yaml` — orchard layout, target branch, olives, catch region and detach topics.
+- `ws/src/robotar_mission/config/harvest_demo.yaml` — mission timing, tolerances, arm poses and comb motion.
+
+Build:
+
+```bash
+./scripts/robotar_build.sh
+```
+
+Watch the complete scripted harvest in Gazebo and RViz:
+
+```bash
+ROBOTAR_GUI=1 ROBOTAR_GPU_RENDER=1 ROBOTAR_TOOL=comb \
+  ./scripts/robotar_run_harvest.sh
+```
+
+The rover drives approximately 3 m, stops, positions the arm, spins the comb only while stationary, requires physical comb/branch contact, releases the six targeted olives, and retracts. Stop the remaining simulation windows with **Ctrl-C** in the launch terminal.
+
+Run headless instead with `ROBOTAR_GUI=0`. Run the safety-gate check, which is expected to fail cleanly without publishing detach commands:
+
+```bash
+ROBOTAR_MISS_CONTACT=1 ROBOTAR_GUI=0 ROBOTAR_TOOL=comb \
+  ./scripts/robotar_run_harvest.sh
+```
+
+Inspect the gripper variant without the harvest mission:
+
+```bash
+ROBOTAR_GUI=1 ROBOTAR_GPU_RENDER=1 ROBOTAR_TOOL=gripper \
+  ./scripts/robotar_run_sim.sh
+```
+
+With that simulation running, an open/close smoke command is:
+
+```bash
+source scripts/robotar_common.sh
+robotar_source_overlay
+ros2 action send_goal /gripper_controller/gripper_cmd \
+  control_msgs/action/GripperCommand \
+  '{command: {position: 0.04, max_effort: 5.0}}'
+```
 
 ## Tomato harvesting: build and run
 
@@ -158,6 +210,8 @@ The built images and named build/install/log volumes remain available for the ne
 
 ## Verification boundaries
 
+- The Robotar mission is a scripted vertical slice: it uses scenario-configured drive and arm poses, not camera perception, Nav2 or MoveIt. Detachment is contact-gated task logic through Gazebo detachable joints, not a stem-force, branch-vibration, fruit-damage or harvest-efficiency model. The 6/6 catch result is a functional simulation check, not a validated field rate.
+- Robot dimensions, mass and arm/tool parameters are simulation design assumptions, not validated hardware ratings or a ruggedness certification.
 - The Amiga run used one robot without Nav2, behavior trees, coordination, agents, VLM or real hardware. Its orchard harvest action remains a placeholder; no fruit was simulated.
 - The CPU tomato run received real simulated camera frames and detections, completed navigation goals, selected a ripe tomato and began executing its first MoveIt harvest-approach trajectory. The CUDA run independently confirmed NVIDIA Gazebo rendering, real camera frames, non-empty detections, tomato mapping and successful Nav2/MoveIt goals. Neither run completed a pick or basket drop.
 - A warmed synthetic CUDA benchmark measured approximately 14.4 ms mean end-to-end YOLO prediction time. This was not a controlled CPU-versus-GPU or complete-mission benchmark.
@@ -166,4 +220,4 @@ The built images and named build/install/log volumes remain available for the ne
 
 ## Logs
 
-Latest build and runtime logs are under `data/logs/`, including Amiga controller/sensor/MoveIt checks and the tomato build, Gazebo, YOLO, CUDA and harvest runs. Files with `gpu` in their names contain the NVIDIA process and runtime evidence. These logs support the verification boundaries above, not benchmarks for future olive-harvesting performance.
+Latest build and runtime logs are under `data/logs/`, including Robotar positive/negative harvest runs, GUI harvest evidence, Amiga controller/sensor/MoveIt checks, and tomato build/Gazebo/YOLO/CUDA runs. Files with `gpu` in their names contain the NVIDIA process and runtime evidence. These logs support the verification boundaries above, not benchmarks for future olive-harvesting performance.

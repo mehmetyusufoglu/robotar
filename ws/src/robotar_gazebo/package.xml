@@ -27,7 +27,7 @@
   <exec_depend>diff_drive_controller</exec_depend>
   <exec_depend>joint_trajectory_controller</exec_depend>
   <exec_depend>velocity_controllers</exec_depend>
-  <exec_depend>gripper_controllers</exec_depend>
+  <exec_depend>position_controllers</exec_depend>
 
   <exec_depend>rosgraph_msgs</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>

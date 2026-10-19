@@ -23,7 +23,7 @@ controller_manager:
       type: velocity_controllers/JointGroupVelocityController
 
     gripper_controller:
-      type: gripper_controllers/GripperActionController
+      type: position_controllers/GripperActionController
 
 drive_controller:
   ros__parameters:

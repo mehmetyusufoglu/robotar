@@ -228,6 +228,7 @@ def generate_launch_description():
             "tool": tool,
             "use_sim_time": use_sim_time,
             "controllers_file": runtime_params if runtime_params else "",
+            "rviz": gui,
         }.items(),
         condition=IfCondition(start_description),
     )
