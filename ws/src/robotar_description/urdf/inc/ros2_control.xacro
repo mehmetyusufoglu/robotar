@@ -1,0 +1,88 @@
+<?xml version="1.0"?>
+<!--
+  robotar ros2_control / GazeboSimSystem interface declarations.
+
+  Joint names come from physical.yaml; interface types per joint group:
+    wheels            : velocity command, position+velocity state
+    arm               : position command (trajectory), position+velocity state
+    comb rotors       : velocity command, position+velocity state
+    gripper (commanded): position command, position+velocity state
+    gripper (mimic)   : state only; GazeboSimSystem follows the URDF
+                        <mimic> element for gripper_right_joint
+
+  The gz_ros2_control Gazebo plugin block is emitted only when a
+  controllers_file path is supplied, so the description stays usable for
+  TF/RViz bringup without a controller configuration.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="wheel_control_interfaces" params="joint">
+    <joint name="${joint}">
+      <command_interface name="velocity"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:macro name="arm_control_interfaces" params="index">
+    <joint name="${ARM['joints'][index]['name']}">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:macro name="robotar_ros2_control" params="tool controllers_file">
+    <ros2_control name="GazeboSimSystem" type="system">
+      <hardware>
+        <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+      </hardware>
+
+      <xacro:wheel_control_interfaces joint="${BASE['wheel_joints']['front_left']}"/>
+      <xacro:wheel_control_interfaces joint="${BASE['wheel_joints']['rear_left']}"/>
+      <xacro:wheel_control_interfaces joint="${BASE['wheel_joints']['front_right']}"/>
+      <xacro:wheel_control_interfaces joint="${BASE['wheel_joints']['rear_right']}"/>
+
+      <xacro:arm_control_interfaces index="${0}"/>
+      <xacro:arm_control_interfaces index="${1}"/>
+      <xacro:arm_control_interfaces index="${2}"/>
+      <xacro:arm_control_interfaces index="${3}"/>
+      <xacro:arm_control_interfaces index="${4}"/>
+      <xacro:arm_control_interfaces index="${5}"/>
+
+      <xacro:if value="${tool == 'comb'}">
+        <joint name="${COMB['rotor_joints'][0]}">
+          <command_interface name="velocity"/>
+          <state_interface name="position"/>
+          <state_interface name="velocity"/>
+        </joint>
+        <joint name="${COMB['rotor_joints'][1]}">
+          <command_interface name="velocity"/>
+          <state_interface name="position"/>
+          <state_interface name="velocity"/>
+        </joint>
+      </xacro:if>
+
+      <xacro:if value="${tool == 'gripper'}">
+        <joint name="${GRIPPER['commanded_joint']}">
+          <command_interface name="position"/>
+          <state_interface name="position"/>
+          <state_interface name="velocity"/>
+        </joint>
+        <joint name="${GRIPPER['mimic_joint']}">
+          <state_interface name="position"/>
+          <state_interface name="velocity"/>
+        </joint>
+      </xacro:if>
+    </ros2_control>
+
+    <xacro:if value="${controllers_file != ''}">
+      <gazebo>
+        <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+          <parameters>${controllers_file}</parameters>
+        </plugin>
+      </gazebo>
+    </xacro:if>
+  </xacro:macro>
+
+</robot>

@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>robotar_description</name>
+  <version>0.1.0</version>
+  <description>
+    Original Xacro/URDF description of the robotar olive-harvesting field
+    platform: a rugged four-wheel differential-drive rover with a 6-DOF
+    side-mounted field arm, a mast RGB-D camera, a chassis IMU and
+    launch-selectable comb/gripper tools behind a common tool0 flange.
+    All geometry, joint names/limits and interface names are sourced from
+    config/physical.yaml (single source of truth).
+  </description>
+  <maintainer email="memo@users.noreply.github.com">memo</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <!-- The URDF declares the GazeboSimSystem hardware/plugin used when the
+       robot is spawned in Gazebo Harmonic by robotar_gazebo. -->
+  <exec_depend>gz_ros2_control</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

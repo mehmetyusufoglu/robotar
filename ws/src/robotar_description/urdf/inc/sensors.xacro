@@ -1,0 +1,146 @@
+<?xml version="1.0"?>
+<!--
+  robotar sensor subsystem: mast with an RGB-D head and a chassis IMU.
+
+  Extrinsics, intrinsics and rates come from physical.yaml (MAST, IMU);
+  Gazebo topic names reuse the ROS topic contract from the TOPICS section.
+  ros_gz_bridge maps the gz camera-info topics (<image topic>/camera_info)
+  onto the contract camera_info topics; see robotar_gazebo bridge.yaml.
+
+  Camera sensors are attached to mast_camera_link, whose +x axis is the
+  view direction (gz-sim camera convention); mast_camera_optical_frame
+  provides the ROS-standard optical frame (z forward, x right, y down).
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="robotar_sensors">
+    <!-- ================================ mast =============================== -->
+    <joint name="mast_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="mast_link"/>
+      <origin xyz="${' '.join(map(str, MAST['xyz']))}" rpy="0 0 0"/>
+    </joint>
+    <link name="mast_link">
+      <!-- Pole runs from the chassis deck up to the mast head. -->
+      <xacro:property name="deck_z" value="${CHASSIS['center_height'] + CHASSIS['height']/2.0}"/>
+      <xacro:property name="pole_len" value="${MAST['xyz'][2] - deck_z}"/>
+      <xacro:inertial_cylinder_z mass="4.0" radius="0.035" length="${pole_len}" oz="${-pole_len/2.0}"/>
+      <visual name="pole">
+        <origin xyz="0 0 ${-pole_len/2.0}" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.035" length="${pole_len}"/></geometry>
+        <material name="mast_steel"/>
+      </visual>
+      <visual name="foot">
+        <origin xyz="0 0 ${-pole_len + 0.03}" rpy="0 0 0"/>
+        <geometry><box size="0.14 0.14 0.06"/></geometry>
+        <material name="mast_steel"/>
+      </visual>
+      <collision name="mast_collision">
+        <origin xyz="0 0 ${-pole_len/2.0}" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.035" length="${pole_len}"/></geometry>
+      </collision>
+    </link>
+
+    <!-- ============================ RGB-D head ============================= -->
+    <joint name="mast_camera_joint" type="fixed">
+      <parent link="mast_link"/>
+      <child link="mast_camera_link"/>
+      <origin xyz="${' '.join(map(str, MAST['camera_xyz']))}"
+              rpy="${' '.join(map(str, MAST['camera_rpy']))}"/>
+    </joint>
+    <link name="mast_camera_link">
+      <xacro:inertial_box mass="0.6" sx="0.14" sy="0.05" sz="0.06"/>
+      <visual name="housing">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><box size="0.14 0.05 0.06"/></geometry>
+        <material name="sensor_black"/>
+      </visual>
+      <visual name="lens">
+        <origin xyz="0.075 0 0" rpy="0 ${math.pi/2} 0"/>
+        <geometry><cylinder radius="0.018" length="0.02"/></geometry>
+        <material name="lens_glass"/>
+      </visual>
+      <collision name="mast_camera_collision">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><box size="0.14 0.05 0.06"/></geometry>
+      </collision>
+    </link>
+    <joint name="mast_camera_optical_joint" type="fixed">
+      <parent link="mast_camera_link"/>
+      <child link="mast_camera_optical_frame"/>
+      <origin xyz="0 0 0" rpy="${-math.pi/2} 0 ${-math.pi/2}"/>
+    </joint>
+    <link name="mast_camera_optical_frame">
+      <xacro:inertial_box mass="0.001" sx="0.001" sy="0.001" sz="0.001"/>
+    </link>
+
+    <gazebo reference="mast_camera_link">
+      <sensor name="mast_rgb_camera" type="camera">
+        <always_on>true</always_on>
+        <update_rate>${MAST['rgbd']['update_rate']}</update_rate>
+        <topic>${TOPICS['camera_rgb']}</topic>
+        <camera>
+          <horizontal_fov>${MAST['rgbd']['horizontal_fov']}</horizontal_fov>
+          <image>
+            <width>${MAST['rgbd']['width']}</width>
+            <height>${MAST['rgbd']['height']}</height>
+            <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>${MAST['rgbd']['near']}</near>
+            <far>${MAST['rgbd']['far']}</far>
+          </clip>
+        </camera>
+      </sensor>
+      <sensor name="mast_depth_camera" type="depth_camera">
+        <always_on>true</always_on>
+        <update_rate>${MAST['rgbd']['update_rate']}</update_rate>
+        <topic>${TOPICS['camera_depth']}</topic>
+        <camera>
+          <horizontal_fov>${MAST['rgbd']['horizontal_fov']}</horizontal_fov>
+          <image>
+            <width>${MAST['rgbd']['width']}</width>
+            <height>${MAST['rgbd']['height']}</height>
+          </image>
+          <clip>
+            <near>${MAST['rgbd']['near']}</near>
+            <far>${MAST['rgbd']['far']}</far>
+          </clip>
+          <depth_camera>
+            <clip>
+              <near>${MAST['rgbd']['near']}</near>
+              <far>${MAST['rgbd']['far']}</far>
+            </clip>
+          </depth_camera>
+        </camera>
+      </sensor>
+    </gazebo>
+
+    <!-- ================================ IMU ================================ -->
+    <joint name="imu_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="${IMU['link']}"/>
+      <origin xyz="${' '.join(map(str, IMU['xyz']))}" rpy="0 0 0"/>
+    </joint>
+    <link name="${IMU['link']}">
+      <xacro:inertial_box mass="0.1" sx="0.05" sy="0.05" sz="0.03"/>
+      <visual name="pod">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><box size="0.05 0.05 0.03"/></geometry>
+        <material name="sensor_black"/>
+      </visual>
+      <collision name="imu_collision">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><box size="0.05 0.05 0.03"/></geometry>
+      </collision>
+    </link>
+    <gazebo reference="${IMU['link']}">
+      <sensor name="chassis_imu" type="imu">
+        <always_on>true</always_on>
+        <update_rate>${IMU['update_rate']}</update_rate>
+        <topic>${TOPICS['imu']}</topic>
+      </sensor>
+    </gazebo>
+  </xacro:macro>
+
+</robot>

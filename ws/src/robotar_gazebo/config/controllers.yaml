@@ -1,0 +1,70 @@
+# ros2_control controller configuration for the Robotar simulation.
+#
+# Scope: controller types, joint names and tuning only. Robot geometry
+# (wheel track, wheel radius, cmd_vel timeout) is owned by
+# robotar_description/config/physical.yaml and is injected at launch time by
+# robotar_gazebo/launch/sim.launch.py, which writes a merged runtime
+# parameter file for the controller spawners. Do not duplicate geometry
+# here.
+controller_manager:
+  ros__parameters:
+    update_rate: 100
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    drive_controller:
+      type: diff_drive_controller/DiffDriveController
+
+    arm_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    comb_controller:
+      type: velocity_controllers/JointGroupVelocityController
+
+    gripper_controller:
+      type: gripper_controllers/GripperActionController
+
+drive_controller:
+  ros__parameters:
+    left_wheel_names: [fl_wheel_joint, rl_wheel_joint]
+    right_wheel_names: [fr_wheel_joint, rr_wheel_joint]
+    # wheel_separation, wheel_radius and cmd_vel_timeout are injected from
+    # physical.yaml by sim.launch.py.
+    odom_frame_id: odom
+    base_frame_id: base_link
+    enable_odom_tf: true
+    position_feedback: false   # velocity feedback from the wheel joints
+    use_stamped_vel: true      # Jazzy geometry_msgs/TwistStamped on cmd_vel
+    velocity_rolling_window_size: 10
+    pose_covariance_diagonal: [0.001, 0.001, 0.01, 0.01, 0.01, 0.05]
+    twist_covariance_diagonal: [0.001, 0.001, 0.01, 0.01, 0.01, 0.05]
+
+arm_controller:
+  ros__parameters:
+    joints:
+      - arm_yaw_joint
+      - arm_shoulder_pitch_joint
+      - arm_elbow_pitch_joint
+      - arm_wrist_pitch_joint
+      - arm_wrist_roll_joint
+      - arm_tool_pitch_joint
+    command_interfaces: [position]
+    state_interfaces: [position, velocity]
+    state_publish_rate: 50.0
+    action_monitor_rate: 20.0
+    allow_partial_joints_goal: false
+    allow_nonzero_velocity_at_trajectory_end: false
+
+comb_controller:
+  ros__parameters:
+    joints: [comb_left_rotor_joint, comb_right_rotor_joint]
+    interface_name: velocity
+
+gripper_controller:
+  ros__parameters:
+    # gripper_right_joint is a mimic joint of this commanded joint.
+    joint: gripper_left_joint
+    max_effort: 20.0
+    goal_tolerance: 0.002
+    allow_stalling: false

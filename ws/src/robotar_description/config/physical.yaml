@@ -1,0 +1,140 @@
+robotar:
+  name: robotar_fieldone
+  base:
+    chassis:
+      length: 1.60
+      width: 1.15
+      height: 0.36
+      center_height: 0.43
+      mass: 180.0
+    ground_clearance: 0.18
+    wheelbase: 1.10
+    wheel_track: 0.95
+    wheel_radius: 0.25
+    wheel_width: 0.18
+    wheel_mass: 18.0
+    wheel_joints:
+      front_left: fl_wheel_joint
+      rear_left: rl_wheel_joint
+      front_right: fr_wheel_joint
+      rear_right: rr_wheel_joint
+    limits:
+      max_linear_velocity: 1.0
+      harvest_linear_velocity: 0.22
+      max_angular_velocity: 0.8
+      cmd_vel_timeout: 0.5
+  mast:
+    xyz: [-0.48, 0.30, 1.12]
+    camera_xyz: [0.0, 0.0, 0.28]
+    camera_rpy: [0.0, 0.35, -0.45]
+    rgbd:
+      width: 640
+      height: 480
+      update_rate: 10.0
+      horizontal_fov: 1.09
+      near: 0.20
+      far: 12.0
+  imu:
+    link: imu_link
+    xyz: [0.0, 0.0, 0.62]
+    update_rate: 50.0
+  arm:
+    mount_xyz: [0.18, -0.38, 0.72]
+    mount_rpy: [0.0, 0.0, 0.0]
+    reach: 1.60
+    flange_payload_model_mass: 5.0
+    joints:
+      - name: arm_yaw_joint
+        type: revolute
+        axis: [0.0, 0.0, 1.0]
+        lower: -2.60
+        upper: 2.60
+        effort: 120.0
+        velocity: 0.8
+      - name: arm_shoulder_pitch_joint
+        type: revolute
+        axis: [0.0, 1.0, 0.0]
+        lower: -1.75
+        upper: 1.75
+        # Holds ~170 Nm of static gravity torque at full horizontal reach
+        # with the comb mounted; 320 Nm is a simulation tuning value with
+        # tracking margin, not a hardware rating.
+        effort: 320.0
+        velocity: 0.7
+      - name: arm_elbow_pitch_joint
+        type: revolute
+        axis: [0.0, 1.0, 0.0]
+        lower: -2.20
+        upper: 2.20
+        # ~90 Nm static at full reach; 180 Nm is a simulation tuning value.
+        effort: 180.0
+        velocity: 0.8
+      - name: arm_wrist_pitch_joint
+        type: revolute
+        axis: [0.0, 1.0, 0.0]
+        lower: -2.10
+        upper: 2.10
+        effort: 70.0
+        velocity: 1.0
+      - name: arm_wrist_roll_joint
+        type: revolute
+        axis: [1.0, 0.0, 0.0]
+        lower: -2.60
+        upper: 2.60
+        effort: 45.0
+        velocity: 1.2
+      - name: arm_tool_pitch_joint
+        type: revolute
+        axis: [0.0, 1.0, 0.0]
+        lower: -1.90
+        upper: 1.90
+        effort: 45.0
+        velocity: 1.2
+    link_lengths:
+      upper_arm: 0.58
+      forearm: 0.54
+      wrist: 0.28
+      tool_adapter: 0.16
+  flange:
+    frame: tool0
+    bolt_circle_diameter: 0.10
+  tools:
+    comb:
+      name: comb
+      mass: 3.0
+      size: [0.45, 0.30, 0.25]
+      rotor_joints: [comb_left_rotor_joint, comb_right_rotor_joint]
+      contact_collisions: [comb_left_bank_collision, comb_right_bank_collision]
+      operational_rpm: 1200.0
+      operational_seconds: 2.0
+    gripper:
+      name: gripper
+      mass: 1.8
+      commanded_joint: gripper_left_joint
+      mimic_joint: gripper_right_joint
+      max_opening: 0.10
+  sensors:
+    comb_contact:
+      topic: /comb/contact
+      update_rate: 50.0
+control:
+  update_rate: 100
+  controllers:
+    joint_states: joint_state_broadcaster
+    drive: drive_controller
+    arm: arm_controller
+    comb: comb_controller
+    gripper: gripper_controller
+topics:
+  cmd_vel: /drive_controller/cmd_vel
+  odometry: /drive_controller/odom
+  joint_states: /joint_states
+  arm_action: /arm_controller/follow_joint_trajectory
+  comb_command: /comb_controller/commands
+  gripper_action: /gripper_controller/gripper_cmd
+  camera_rgb: /camera/mast/image_raw
+  camera_depth: /camera/mast/depth/image_raw
+  camera_rgb_info: /camera/mast/camera_info
+  camera_depth_info: /camera/mast/depth/camera_info
+  imu: /imu/data
+  comb_contact: /comb/contact

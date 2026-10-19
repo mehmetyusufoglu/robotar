@@ -1,0 +1,52 @@
+name: amiga-sim
+
+services:
+  novnc:
+    image: ghcr.io/ucmercedrobotics/docker-novnc@sha256:265d1e249f7667347b11390e3c6e91ed691ebe2a450a81bfb29c83e3b4abd5b6
+    platform: linux/amd64
+    init: true
+    environment:
+      DISPLAY: ":2"
+      ENABLEHWGPU: "false"
+      LIBGL_ALWAYS_SOFTWARE: "1"
+      __GLX_VENDOR_LIBRARY_NAME: mesa
+    ports:
+      - "127.0.0.1:8080:8080"
+    expose:
+      - "6002"
+    networks:
+      - amiga
+
+  ros:
+    image: ghcr.io/ucmercedrobotics/amiga-ros2-bridge:amd64
+    platform: linux/amd64
+    init: true
+    depends_on:
+      - novnc
+    command: ["sleep", "infinity"]
+    working_dir: /amiga-ros2-bridge
+    environment:
+      DISPLAY: novnc:2
+      ENABLEHWGPU: "false"
+      LIBGL_ALWAYS_SOFTWARE: "1"
+      __GLX_VENDOR_LIBRARY_NAME: mesa
+      __NV_PRIME_RENDER_OFFLOAD: "0"
+    volumes:
+      - type: bind
+        source: ../../third_party/amiga-ros2-bridge
+        target: /amiga-ros2-bridge
+      - /amiga-ros2-bridge/manifests
+      - build:/amiga-ros2-bridge/build
+      - install:/amiga-ros2-bridge/install
+      - log:/amiga-ros2-bridge/log
+    networks:
+      - amiga
+
+networks:
+  amiga:
+    driver: bridge
+
+volumes:
+  build:
+  install:
+  log:

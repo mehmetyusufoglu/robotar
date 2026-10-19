@@ -1,0 +1,111 @@
+<?xml version="1.0"?>
+<!--
+  comb tool: guarded twin counter-rotating comb banks on the tool0 flange.
+
+  Rotor joint names, collision names, housing size and the total tool mass
+  come from physical.yaml (COMB). Both rotor axes point along tool0 +z;
+  counter-rotation is achieved by opposite-sign velocity commands from
+  comb_controller (the joints themselves are symmetric).
+
+  Each rotor carries a Gazebo contact sensor bound to its swept-bank
+  collision (coarse cylinder, per plan); both publish ros_gz_interfaces
+  Contacts on the shared contract topic from physical.yaml. Tine rings
+  protrude below the housing so the lower bank engages the branch; the
+  two rotor collision cylinders do not overlap, so the rotors never
+  jam each other.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- One steel tine at azimuth theta, height zlvl, in the rotor frame. -->
+  <xacro:macro name="comb_tine" params="theta zlvl">
+    <visual>
+      <origin xyz="${0.075*math.cos(theta)} ${0.075*math.sin(theta)} ${zlvl}" rpy="0 0 ${theta}"/>
+      <geometry><box size="0.07 0.02 0.02"/></geometry>
+      <material name="tine_steel"/>
+    </visual>
+  </xacro:macro>
+
+  <!-- One comb bank: shaft + two tine rings + swept-volume collision with
+       an attached contact sensor. -->
+  <xacro:macro name="comb_rotor" params="side joint px collision">
+    <joint name="${joint}" type="continuous">
+      <parent link="comb_body_link"/>
+      <child link="comb_${side}_rotor_link"/>
+      <origin xyz="${px} 0 0" rpy="0 0 0"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="5.0" velocity="${COMB['operational_rpm']*math.pi/30.0}"/>
+    </joint>
+    <link name="comb_${side}_rotor_link">
+      <xacro:inertial_cylinder_z mass="0.4" radius="0.11" length="0.16"/>
+      <visual name="shaft">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.05" length="0.20"/></geometry>
+        <material name="rotor_dark"/>
+      </visual>
+      <xacro:comb_tine theta="${0.0*math.pi}" zlvl="${-0.06}"/>
+      <xacro:comb_tine theta="${0.5*math.pi}" zlvl="${-0.06}"/>
+      <xacro:comb_tine theta="${1.0*math.pi}" zlvl="${-0.06}"/>
+      <xacro:comb_tine theta="${1.5*math.pi}" zlvl="${-0.06}"/>
+      <xacro:comb_tine theta="${0.25*math.pi}" zlvl="${0.06}"/>
+      <xacro:comb_tine theta="${0.75*math.pi}" zlvl="${0.06}"/>
+      <xacro:comb_tine theta="${1.25*math.pi}" zlvl="${0.06}"/>
+      <xacro:comb_tine theta="${1.75*math.pi}" zlvl="${0.06}"/>
+      <collision name="${collision}">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.115" length="0.16"/></geometry>
+      </collision>
+    </link>
+    <gazebo reference="comb_${side}_rotor_link">
+      <sensor name="comb_${side}_contact_sensor" type="contact">
+        <always_on>true</always_on>
+        <update_rate>${SENSORS['comb_contact']['update_rate']}</update_rate>
+        <!-- gz-sim Harmonic's contact system reads the topic from inside the
+             <contact> element; a sensor-level <topic> is ignored there. -->
+        <contact>
+          <collision>${collision}</collision>
+          <topic>${SENSORS['comb_contact']['topic']}</topic>
+        </contact>
+      </sensor>
+    </gazebo>
+  </xacro:macro>
+
+  <xacro:macro name="robotar_comb_tool">
+    <joint name="comb_mount_joint" type="fixed">
+      <parent link="tool0"/>
+      <child link="comb_body_link"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+    <link name="comb_body_link">
+      <!-- Rotors carry 2 x 0.4 kg; the housing holds the remainder of the
+           SSOT tool mass. -->
+      <xacro:inertial_box mass="${COMB['mass'] - 0.8}"
+                          sx="${COMB['size'][0]}" sy="${COMB['size'][1]}" sz="${COMB['size'][2]}"
+                          oz="${0.02 + COMB['size'][2]/2.0}"/>
+      <visual name="housing">
+        <origin xyz="0 0 ${0.02 + COMB['size'][2]/2.0}" rpy="0 0 0"/>
+        <geometry><box size="${COMB['size'][0]} ${COMB['size'][1]} ${COMB['size'][2]}"/></geometry>
+        <material name="comb_guard"/>
+      </visual>
+      <visual name="left_motor_pod">
+        <origin xyz="0.12 0 ${0.05 + COMB['size'][2]}" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.05" length="0.06"/></geometry>
+        <material name="rotor_dark"/>
+      </visual>
+      <visual name="right_motor_pod">
+        <origin xyz="-0.12 0 ${0.05 + COMB['size'][2]}" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.05" length="0.06"/></geometry>
+        <material name="rotor_dark"/>
+      </visual>
+      <collision name="comb_housing_collision">
+        <origin xyz="0 0 ${0.02 + COMB['size'][2]/2.0}" rpy="0 0 0"/>
+        <geometry><box size="${COMB['size'][0]} ${COMB['size'][1]} ${COMB['size'][2]}"/></geometry>
+      </collision>
+    </link>
+
+    <xacro:comb_rotor side="left" joint="${COMB['rotor_joints'][0]}"
+                      px="${0.12}" collision="${COMB['contact_collisions'][0]}"/>
+    <xacro:comb_rotor side="right" joint="${COMB['rotor_joints'][1]}"
+                      px="${-0.12}" collision="${COMB['contact_collisions'][1]}"/>
+  </xacro:macro>
+
+</robot>

@@ -1,0 +1,57 @@
+# Mission parameters for the Robotar olive-harvest demo.
+#
+# Scope: mission timing/tolerances, arm joint poses, comb velocity/duration
+# and the no-contact verification mode. Orchard geometry, olive IDs, branch
+# collision names, drive target and topic names are NOT duplicated here —
+# they come from robotar_gazebo/config/orchard.yaml and
+# robotar_description/config/physical.yaml (paths injected by the launch
+# file).
+#
+# Arm poses are six values in physical.yaml robotar.arm.joints order:
+#   [arm_yaw, shoulder_pitch, elbow_pitch, wrist_pitch, wrist_roll, tool_pitch]
+# They were derived against the orchard geometry so that, after driving to
+# drive_to_x with the base settled at the spawn row, the comb banks straddle
+# target_branch at (3.5, y=-2.85, z=1.42) with the tool0 z-axis vertical.
+
+odom_driver:
+  ros__parameters:
+    use_sim_time: true
+    # orchard_config_path / physical_config_path are injected by the launch file.
+    control_rate_hz: 20.0
+    position_tolerance_m: 0.05
+    drive_timeout_s: 45.0
+    odom_timeout_s: 3.0
+    kp_linear: 0.6
+    kp_lateral: 1.0
+    kp_yaw: 1.2
+
+harvest_demo:
+  ros__parameters:
+    use_sim_time: true
+    # orchard_config_path / physical_config_path are injected by the launch file.
+    miss_contact: false   # true = deliberate miss pose: no detach, clean failure
+
+    stow_pose: [-0.6178, -0.4313, 2.1682, 1.7937, 0.0, 0.8334]
+    pre_position_pose: [-1.6391, -0.5542, 1.4987, -1.2445, 0.0, -1.2708]
+    insert_pose: [-1.3038, -0.5114, 1.3912, -1.1798, 0.0, -1.2708]
+    miss_insert_pose: [-1.5366, -0.5562, 1.5040, -1.2478, 0.0, -1.2708]
+
+    stow_duration_s: 6.0
+    pre_position_duration_s: 6.0
+    insert_duration_s: 4.0
+    retract_duration_s: 6.0
+
+    controller_wait_timeout_s: 90.0
+    action_timeout_s: 40.0
+    drive_status_timeout_s: 60.0
+    stop_settle_s: 2.0
+
+    stationary_linear_threshold: 0.02   # m/s, base-stationary comb interlock
+    stationary_angular_threshold: 0.03  # rad/s
+
+    comb_velocity_rad_s: 60.0   # per rotor; banks counter-rotate (+/-)
+    comb_duration_s: 2.5
+    comb_publish_rate_hz: 10.0
+
+    detach_ack_timeout_s: 10.0
+    mission_timeout_s: 300.0

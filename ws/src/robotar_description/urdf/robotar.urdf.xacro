@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+<!--
+  robotar field platform, top-level description.
+
+  Single source of truth: config/physical.yaml supplies all geometry,
+  joint names/limits, sensor extrinsics and interface names. This file
+  only wires the subsystem macros (base, arm, sensors, tool, control)
+  together; it contains no duplicated physical constants.
+
+  Arguments:
+    tool             : 'comb' (default) or 'gripper' — launch-time tool
+                       interchangeability behind the common tool0 flange.
+    physical_params  : path to the SSOT YAML (default: the package copy,
+                       resolved relative to this file).
+    controllers_file : ros2_control parameter YAML consumed by the
+                       gz_ros2_control Gazebo plugin. Empty (default) omits
+                       the plugin so the description is usable for pure
+                       TF/RViz bringup without a controller configuration.
+
+  The robot name mirrors robotar.name in physical.yaml (xacro cannot
+  evaluate file arguments inside the root element attribute).
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="robotar_fieldone">
+
+  <xacro:arg name="tool" default="comb"/>
+  <xacro:arg name="physical_params" default="../config/physical.yaml"/>
+  <xacro:arg name="controllers_file" default=""/>
+
+  <!-- Fail fast with a KeyError naming the bad value on an unsupported
+       tool selection (xacro properties are lazy; an element attribute is
+       evaluated eagerly when this conditional body is emitted). -->
+  <xacro:unless value="${'$(arg tool)' == 'comb' or '$(arg tool)' == 'gripper'}">
+    <link name="unsupported_tool_${{'comb': 'comb', 'gripper': 'gripper'}['$(arg tool)']}"/>
+  </xacro:unless>
+
+  <!-- SSOT handles; every subsystem macro reads through these. -->
+  <xacro:property name="ROBOTAR_CFG" value="${xacro.load_yaml('$(arg physical_params)')}"/>
+  <xacro:property name="R" value="${ROBOTAR_CFG['robotar']}"/>
+  <xacro:property name="BASE" value="${R['base']}"/>
+  <xacro:property name="CHASSIS" value="${R['base']['chassis']}"/>
+  <xacro:property name="LIMITS" value="${R['base']['limits']}"/>
+  <xacro:property name="MAST" value="${R['mast']}"/>
+  <xacro:property name="IMU" value="${R['imu']}"/>
+  <xacro:property name="ARM" value="${R['arm']}"/>
+  <xacro:property name="ARM_LINKS" value="${R['arm']['link_lengths']}"/>
+  <xacro:property name="COMB" value="${R['tools']['comb']}"/>
+  <xacro:property name="GRIPPER" value="${R['tools']['gripper']}"/>
+  <xacro:property name="SENSORS" value="${R['sensors']}"/>
+  <xacro:property name="TOPICS" value="${ROBOTAR_CFG['topics']}"/>
+
+  <!-- Global color palette; subsystem files reference these by name. -->
+  <material name="olive_drab"><color rgba="0.30 0.31 0.23 1.0"/></material>
+  <material name="body_dark"><color rgba="0.20 0.21 0.17 1.0"/></material>
+  <material name="bumper_steel"><color rgba="0.25 0.26 0.28 1.0"/></material>
+  <material name="tire_rubber"><color rgba="0.13 0.13 0.13 1.0"/></material>
+  <material name="lug_rubber"><color rgba="0.10 0.10 0.10 1.0"/></material>
+  <material name="hub_steel"><color rgba="0.45 0.46 0.48 1.0"/></material>
+  <material name="arm_orange"><color rgba="0.75 0.38 0.10 1.0"/></material>
+  <material name="arm_dark"><color rgba="0.16 0.17 0.18 1.0"/></material>
+  <material name="mast_steel"><color rgba="0.35 0.36 0.38 1.0"/></material>
+  <material name="sensor_black"><color rgba="0.05 0.05 0.06 1.0"/></material>
+  <material name="lens_glass"><color rgba="0.05 0.20 0.35 1.0"/></material>
+  <material name="tine_steel"><color rgba="0.55 0.55 0.58 1.0"/></material>
+  <material name="rotor_dark"><color rgba="0.15 0.15 0.16 1.0"/></material>
+  <material name="comb_guard"><color rgba="0.72 0.55 0.10 1.0"/></material>
+
+  <!-- Relative include paths resolve against this file's directory. -->
+  <xacro:include filename="inc/base.xacro"/>
+  <xacro:include filename="inc/arm.xacro"/>
+  <xacro:include filename="inc/sensors.xacro"/>
+  <xacro:include filename="inc/ros2_control.xacro"/>
+  <xacro:include filename="tools/comb.xacro"/>
+  <xacro:include filename="tools/gripper.xacro"/>
+
+  <!-- Root of the TF tree: ground projection of the chassis center. -->
+  <link name="base_footprint"/>
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 ${CHASSIS['center_height']}" rpy="0 0 0"/>
+  </joint>
+
+  <xacro:robotar_base/>
+  <xacro:robotar_arm/>
+  <xacro:robotar_sensors/>
+
+  <xacro:if value="${'$(arg tool)' == 'comb'}">
+    <xacro:robotar_comb_tool/>
+  </xacro:if>
+  <xacro:if value="${'$(arg tool)' == 'gripper'}">
+    <xacro:robotar_gripper_tool/>
+  </xacro:if>
+
+  <xacro:robotar_ros2_control tool="$(arg tool)" controllers_file="$(arg controllers_file)"/>
+
+</robot>

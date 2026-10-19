@@ -1,0 +1,81 @@
+<?xml version="1.0"?>
+<!--
+  gripper tool: simple parallel-jaw gripper on the tool0 flange.
+
+  Joint names, total tool mass and maximum opening come from
+  physical.yaml (GRIPPER). gripper_left_joint is the commanded prismatic
+  joint (0 = closed, +max_opening/2 per finger = fully open along +y);
+  gripper_right_joint mirrors it through a URDF <mimic> element with
+  multiplier -1 so both fingers close symmetrically.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- One finger: rail block + jaw extending along tool0 +z. The pad sign
+       py_sign points the jaw pad toward the gripper centerline. -->
+  <xacro:macro name="gripper_finger" params="link py_sign">
+    <link name="${link}">
+      <xacro:inertial_box mass="0.3" sx="0.03" sy="0.016" sz="0.09" oz="0.045"/>
+      <visual name="finger">
+        <origin xyz="0 0 0.045" rpy="0 0 0"/>
+        <geometry><box size="0.03 0.016 0.09"/></geometry>
+        <material name="hub_steel"/>
+      </visual>
+      <visual name="jaw_pad">
+        <origin xyz="0 ${py_sign*(-0.014)} 0.075" rpy="0 0 0"/>
+        <geometry><box size="0.03 0.012 0.03"/></geometry>
+        <material name="lug_rubber"/>
+      </visual>
+      <collision name="${link}_collision">
+        <origin xyz="0 0 0.045" rpy="0 0 0"/>
+        <geometry><box size="0.03 0.016 0.09"/></geometry>
+      </collision>
+    </link>
+  </xacro:macro>
+
+  <xacro:macro name="robotar_gripper_tool">
+    <joint name="gripper_mount_joint" type="fixed">
+      <parent link="tool0"/>
+      <child link="gripper_base_link"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+    <link name="gripper_base_link">
+      <!-- Fingers carry 2 x 0.3 kg; the palm holds the remainder of the
+           SSOT tool mass. -->
+      <xacro:inertial_box mass="${GRIPPER['mass'] - 0.6}" sx="0.10" sy="0.09" sz="0.13" oz="0.075"/>
+      <visual name="palm">
+        <origin xyz="0 0 0.075" rpy="0 0 0"/>
+        <geometry><box size="0.10 0.09 0.13"/></geometry>
+        <material name="arm_orange"/>
+      </visual>
+      <visual name="wrist_collar">
+        <origin xyz="0 0 0.015" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.045" length="0.03"/></geometry>
+        <material name="arm_dark"/>
+      </visual>
+      <collision name="gripper_palm_collision">
+        <origin xyz="0 0 0.075" rpy="0 0 0"/>
+        <geometry><box size="0.10 0.09 0.13"/></geometry>
+      </collision>
+    </link>
+
+    <joint name="${GRIPPER['commanded_joint']}" type="prismatic">
+      <parent link="gripper_base_link"/>
+      <child link="gripper_left_finger_link"/>
+      <origin xyz="0 0.0225 0.14" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <limit lower="0.0" upper="${GRIPPER['max_opening']/2.0}" effort="20.0" velocity="0.1"/>
+    </joint>
+    <xacro:gripper_finger link="gripper_left_finger_link" py_sign="${1.0}"/>
+
+    <joint name="${GRIPPER['mimic_joint']}" type="prismatic">
+      <parent link="gripper_base_link"/>
+      <child link="gripper_right_finger_link"/>
+      <origin xyz="0 -0.0225 0.14" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <limit lower="${-GRIPPER['max_opening']/2.0}" upper="0.0" effort="20.0" velocity="0.1"/>
+      <mimic joint="${GRIPPER['commanded_joint']}" multiplier="-1" offset="0.0"/>
+    </joint>
+    <xacro:gripper_finger link="gripper_right_finger_link" py_sign="${-1.0}"/>
+  </xacro:macro>
+
+</robot>

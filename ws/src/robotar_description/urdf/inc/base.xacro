@@ -1,0 +1,185 @@
+<?xml version="1.0"?>
+<!--
+  robotar base subsystem: chassis tub, skid plate, bumpers, fenders and
+  four lugged wheels on continuous axle joints.
+
+  Also hosts the shared inertial helper macros used by every other
+  subsystem (kept here because the base is always included first).
+
+  All dimensions, masses and wheel joint names come from physical.yaml
+  via the global SSOT properties (BASE, CHASSIS, LIMITS). Styling extras
+  (hood, bumpers, fenders, tread lugs) are conceptual and derived from
+  those dimensions. Wheel joint effort limits are simulation tuning
+  values; physical.yaml carries no actuator rating for the wheels yet.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ======================= shared inertial helpers ======================= -->
+  <xacro:macro name="inertial_box" params="mass sx sy sz ox:=0 oy:=0 oz:=0">
+    <inertial>
+      <origin xyz="${ox} ${oy} ${oz}" rpy="0 0 0"/>
+      <mass value="${mass}"/>
+      <inertia ixx="${mass*(sy*sy + sz*sz)/12.0}" ixy="0.0" ixz="0.0"
+               iyy="${mass*(sx*sx + sz*sz)/12.0}" iyz="0.0"
+               izz="${mass*(sx*sx + sy*sy)/12.0}"/>
+    </inertial>
+  </xacro:macro>
+
+  <xacro:macro name="inertial_cylinder_x" params="mass radius length ox:=0 oy:=0 oz:=0">
+    <inertial>
+      <origin xyz="${ox} ${oy} ${oz}" rpy="0 0 0"/>
+      <mass value="${mass}"/>
+      <inertia ixx="${0.5*mass*radius*radius}" ixy="0.0" ixz="0.0"
+               iyy="${mass*(3.0*radius*radius + length*length)/12.0}" iyz="0.0"
+               izz="${mass*(3.0*radius*radius + length*length)/12.0}"/>
+    </inertial>
+  </xacro:macro>
+
+  <xacro:macro name="inertial_cylinder_y" params="mass radius length ox:=0 oy:=0 oz:=0">
+    <inertial>
+      <origin xyz="${ox} ${oy} ${oz}" rpy="0 0 0"/>
+      <mass value="${mass}"/>
+      <inertia ixx="${mass*(3.0*radius*radius + length*length)/12.0}" ixy="0.0" ixz="0.0"
+               iyy="${0.5*mass*radius*radius}" iyz="0.0"
+               izz="${mass*(3.0*radius*radius + length*length)/12.0}"/>
+    </inertial>
+  </xacro:macro>
+
+  <xacro:macro name="inertial_cylinder_z" params="mass radius length ox:=0 oy:=0 oz:=0">
+    <inertial>
+      <origin xyz="${ox} ${oy} ${oz}" rpy="0 0 0"/>
+      <mass value="${mass}"/>
+      <inertia ixx="${mass*(3.0*radius*radius + length*length)/12.0}" ixy="0.0" ixz="0.0"
+               iyy="${mass*(3.0*radius*radius + length*length)/12.0}" iyz="0.0"
+               izz="${0.5*mass*radius*radius}"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- ============================ wheel styling ============================ -->
+  <!-- One tread lug, rotated into place around the (y-axis) axle. -->
+  <xacro:macro name="wheel_lug" params="theta">
+    <visual>
+      <origin xyz="${(BASE['wheel_radius']-0.018)*math.cos(theta)} 0 ${(BASE['wheel_radius']-0.018)*math.sin(theta)}"
+              rpy="0 ${-theta} 0"/>
+      <geometry><box size="0.075 ${BASE['wheel_width']+0.02} 0.036"/></geometry>
+      <material name="lug_rubber"/>
+    </visual>
+  </xacro:macro>
+
+  <!-- Lugged field wheel: tire + hub + eight tread lugs, smooth cylinder
+       collision (lugs are visual-only) and high-friction contact surface. -->
+  <xacro:macro name="lugged_wheel" params="link joint px py">
+    <joint name="${joint}" type="continuous">
+      <parent link="base_link"/>
+      <child link="${link}"/>
+      <origin xyz="${px} ${py} ${BASE['wheel_radius'] - CHASSIS['center_height']}" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <limit effort="60.0"
+             velocity="${(LIMITS['max_linear_velocity'] + LIMITS['max_angular_velocity']*BASE['wheel_track']/2.0) / BASE['wheel_radius']}"/>
+    </joint>
+    <link name="${link}">
+      <xacro:inertial_cylinder_y mass="${BASE['wheel_mass']}"
+                                 radius="${BASE['wheel_radius']}"
+                                 length="${BASE['wheel_width']}"/>
+      <visual name="tire">
+        <origin xyz="0 0 0" rpy="${math.pi/2} 0 0"/>
+        <geometry><cylinder radius="${BASE['wheel_radius']}" length="${BASE['wheel_width']}"/></geometry>
+        <material name="tire_rubber"/>
+      </visual>
+      <visual name="hub">
+        <origin xyz="0 0 0" rpy="${math.pi/2} 0 0"/>
+        <geometry><cylinder radius="${0.45*BASE['wheel_radius']}" length="${BASE['wheel_width']+0.02}"/></geometry>
+        <material name="hub_steel"/>
+      </visual>
+      <xacro:wheel_lug theta="${0.0*math.pi}"/>
+      <xacro:wheel_lug theta="${0.25*math.pi}"/>
+      <xacro:wheel_lug theta="${0.5*math.pi}"/>
+      <xacro:wheel_lug theta="${0.75*math.pi}"/>
+      <xacro:wheel_lug theta="${1.0*math.pi}"/>
+      <xacro:wheel_lug theta="${1.25*math.pi}"/>
+      <xacro:wheel_lug theta="${1.5*math.pi}"/>
+      <xacro:wheel_lug theta="${1.75*math.pi}"/>
+      <collision name="${link}_collision">
+        <origin xyz="0 0 0" rpy="${math.pi/2} 0 0"/>
+        <geometry><cylinder radius="${BASE['wheel_radius']}" length="${BASE['wheel_width']}"/></geometry>
+      </collision>
+    </link>
+    <gazebo reference="${link}">
+      <mu1>1.0</mu1>
+      <mu2>1.0</mu2>
+    </gazebo>
+  </xacro:macro>
+
+  <!-- Fender panel above one wheel. -->
+  <xacro:macro name="wheel_fender" params="px py">
+    <visual>
+      <origin xyz="${px} ${py} ${2.0*BASE['wheel_radius'] + 0.03 - CHASSIS['center_height']}" rpy="0 0 0"/>
+      <geometry><box size="0.56 ${BASE['wheel_width']+0.06} 0.03"/></geometry>
+      <material name="body_dark"/>
+    </visual>
+  </xacro:macro>
+
+  <!-- ================================ base ================================= -->
+  <xacro:macro name="robotar_base">
+    <!-- Skid plate hangs below the tub so the belly sits at the SSOT
+         ground clearance. -->
+    <xacro:property name="skid_t"
+                    value="${CHASSIS['center_height'] - CHASSIS['height']/2.0 - BASE['ground_clearance']}"/>
+    <xacro:property name="skid_z"
+                    value="${BASE['ground_clearance'] + skid_t/2.0 - CHASSIS['center_height']}"/>
+
+    <link name="base_link">
+      <xacro:inertial_box mass="${CHASSIS['mass']}"
+                          sx="${CHASSIS['length']}"
+                          sy="${CHASSIS['width']}"
+                          sz="${CHASSIS['height']}"/>
+      <visual name="tub">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><box size="${CHASSIS['length']} ${CHASSIS['width']} ${CHASSIS['height']}"/></geometry>
+        <material name="olive_drab"/>
+      </visual>
+      <visual name="hood">
+        <origin xyz="${0.28*CHASSIS['length']} 0 ${CHASSIS['height']/2.0 + 0.05}" rpy="0 0 0"/>
+        <geometry><box size="0.55 0.95 0.10"/></geometry>
+        <material name="olive_drab"/>
+      </visual>
+      <visual name="skid_plate">
+        <origin xyz="0 0 ${skid_z}" rpy="0 0 0"/>
+        <geometry><box size="${0.8*CHASSIS['length']} ${0.78*CHASSIS['width']} ${skid_t}"/></geometry>
+        <material name="body_dark"/>
+      </visual>
+      <xacro:wheel_fender px="${ BASE['wheelbase']/2.0}" py="${ BASE['wheel_track']/2.0}"/>
+      <xacro:wheel_fender px="${-BASE['wheelbase']/2.0}" py="${ BASE['wheel_track']/2.0}"/>
+      <xacro:wheel_fender px="${ BASE['wheelbase']/2.0}" py="${-BASE['wheel_track']/2.0}"/>
+      <xacro:wheel_fender px="${-BASE['wheelbase']/2.0}" py="${-BASE['wheel_track']/2.0}"/>
+      <visual name="front_bumper">
+        <origin xyz="${CHASSIS['length']/2.0 + 0.04} 0 -0.05" rpy="0 0 0"/>
+        <geometry><box size="0.08 ${CHASSIS['width']} 0.10"/></geometry>
+        <material name="bumper_steel"/>
+      </visual>
+      <visual name="rear_bumper">
+        <origin xyz="${-CHASSIS['length']/2.0 - 0.04} 0 -0.05" rpy="0 0 0"/>
+        <geometry><box size="0.08 ${CHASSIS['width']} 0.10"/></geometry>
+        <material name="bumper_steel"/>
+      </visual>
+      <collision name="chassis_collision">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><box size="${CHASSIS['length']} ${CHASSIS['width']} ${CHASSIS['height']}"/></geometry>
+      </collision>
+      <collision name="skid_plate_collision">
+        <origin xyz="0 0 ${skid_z}" rpy="0 0 0"/>
+        <geometry><box size="${0.8*CHASSIS['length']} ${0.78*CHASSIS['width']} ${skid_t}"/></geometry>
+      </collision>
+    </link>
+
+    <xacro:lugged_wheel link="fl_wheel_link" joint="${BASE['wheel_joints']['front_left']}"
+                        px="${ BASE['wheelbase']/2.0}" py="${ BASE['wheel_track']/2.0}"/>
+    <xacro:lugged_wheel link="rl_wheel_link" joint="${BASE['wheel_joints']['rear_left']}"
+                        px="${-BASE['wheelbase']/2.0}" py="${ BASE['wheel_track']/2.0}"/>
+    <xacro:lugged_wheel link="fr_wheel_link" joint="${BASE['wheel_joints']['front_right']}"
+                        px="${ BASE['wheelbase']/2.0}" py="${-BASE['wheel_track']/2.0}"/>
+    <xacro:lugged_wheel link="rr_wheel_link" joint="${BASE['wheel_joints']['rear_right']}"
+                        px="${-BASE['wheelbase']/2.0}" py="${-BASE['wheel_track']/2.0}"/>
+  </xacro:macro>
+
+</robot>

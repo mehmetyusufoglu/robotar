@@ -1,0 +1,58 @@
+orchard:
+  name: robotar_olive_row
+  seed: 42
+  physics:
+    max_step_size: 0.004
+    real_time_update_rate: 250.0
+  ground:
+    size: [24.0, 14.0]
+    material: dry_soil
+  rows:
+    count: 2
+    trees_per_row: 4
+    row_spacing: 7.0
+    tree_spacing: 3.5
+    row_y: [-3.5, 3.5]
+    start_x: 0.0
+  tree:
+    height: 3.30
+    canopy_width: 3.00
+    canopy_depth: 3.00
+    canopy_bottom: 0.85
+    trunk_diameter: 0.16
+  robot:
+    spawn_xyz: [0.0, -1.30, 0.25]
+    spawn_yaw: 0.0
+    drive_to_x: 3.0
+  target_tree:
+    name: olive_tree_1
+    xyz: [3.5, -3.5, 0.0]
+    harvest_branch:
+      name: target_branch
+      collision: target_branch_collision
+      tip_xyz: [3.5, -2.55, 1.42]
+      radius: 0.035
+      length: 0.90
+    olive_count: 6
+    olives:
+      prefix: olive_target
+      size_xyz: [0.016, 0.016, 0.024]
+      mass: 0.005
+      positions:
+        - [3.28, -2.46, 1.34]
+        - [3.43, -2.48, 1.30]
+        - [3.58, -2.50, 1.36]
+        - [3.72, -2.52, 1.32]
+        - [3.35, -2.60, 1.52]
+        - [3.64, -2.62, 1.50]
+  catch_net:
+    name: target_catch_net
+    center_xyz: [3.5, -3.2, 0.035]
+    size: [2.4, 2.4]
+    rim_height: 0.08
+  topics:
+    detach_pattern: /harvest/{olive}/detach
+    state_pattern: /harvest/{olive}/state
+  contacts:
+    tool_collisions: [comb_left_bank_collision, comb_right_bank_collision]
+    branch_collision: target_branch_collision

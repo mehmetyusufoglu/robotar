@@ -1,0 +1,152 @@
+<?xml version="1.0"?>
+<!--
+  robotar arm subsystem: original side-mounted 6-DOF field arm with the
+  common tool0 flange.
+
+  Joint names, types, axes and limits and all link lengths come from
+  physical.yaml (ARM / ARM_LINKS). Link masses are conceptual simulation
+  tuning values (physical.yaml carries no per-link arm masses yet); the
+  chain totals roughly 25 kg, leaving the chassis-plus-arm total near the
+  280 kg concept mass. Link cross-sections and the short wrist-roll
+  barrel length (0.10 m) are original styling choices.
+
+  Frame conventions: arm segments extend along their local +x; the tool0
+  flange frame has +z pointing out of the flange so tools attach with an
+  identity transform and extend along tool0 +z.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Box arm segment extending along +x from its parent joint. -->
+  <xacro:macro name="arm_segment" params="link length width height mass">
+    <link name="${link}">
+      <xacro:inertial_box mass="${mass}" sx="${length}" sy="${width}" sz="${height}"
+                          ox="${length/2.0}"/>
+      <visual name="tube">
+        <origin xyz="${length/2.0} 0 0" rpy="0 0 0"/>
+        <geometry><box size="${length} ${width} ${height}"/></geometry>
+        <material name="arm_orange"/>
+      </visual>
+      <collision name="${link}_collision">
+        <origin xyz="${length/2.0} 0 0" rpy="0 0 0"/>
+        <geometry><box size="${length} ${width} ${height}"/></geometry>
+      </collision>
+    </link>
+  </xacro:macro>
+
+  <!-- One revolute arm joint; index selects the entry in
+       physical.yaml robotar.arm.joints (name/type/axis/limits). -->
+  <xacro:macro name="arm_joint" params="index parent child ox oy oz">
+    <xacro:property name="J" value="${ARM['joints'][index]}"/>
+    <joint name="${J['name']}" type="${J['type']}">
+      <parent link="${parent}"/>
+      <child link="${child}"/>
+      <origin xyz="${ox} ${oy} ${oz}" rpy="0 0 0"/>
+      <axis xyz="${' '.join(map(str, J['axis']))}"/>
+      <limit lower="${J['lower']}" upper="${J['upper']}"
+             effort="${J['effort']}" velocity="${J['velocity']}"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:macro name="robotar_arm">
+    <!-- Mount pedestal anchored to the chassis deck. -->
+    <joint name="arm_mount_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="arm_base_link"/>
+      <origin xyz="${' '.join(map(str, ARM['mount_xyz']))}"
+              rpy="${' '.join(map(str, ARM['mount_rpy']))}"/>
+    </joint>
+    <link name="arm_base_link">
+      <xacro:inertial_cylinder_z mass="6.0" radius="0.11" length="0.16" oz="-0.05"/>
+      <visual name="pedestal">
+        <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.11" length="0.16"/></geometry>
+        <material name="arm_dark"/>
+      </visual>
+      <collision name="arm_base_collision">
+        <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.11" length="0.16"/></geometry>
+      </collision>
+    </link>
+
+    <!-- yaw column -->
+    <xacro:arm_joint index="${0}" parent="arm_base_link" child="arm_yaw_link" ox="0" oy="0" oz="0.05"/>
+    <link name="arm_yaw_link">
+      <xacro:inertial_cylinder_z mass="4.0" radius="0.075" length="0.12" oz="0.06"/>
+      <visual name="column">
+        <origin xyz="0 0 0.06" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.075" length="0.12"/></geometry>
+        <material name="arm_dark"/>
+      </visual>
+      <collision name="arm_yaw_collision">
+        <origin xyz="0 0 0.06" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.075" length="0.12"/></geometry>
+      </collision>
+    </link>
+
+    <!-- shoulder pitch / upper arm -->
+    <xacro:arm_joint index="${1}" parent="arm_yaw_link" child="arm_upper_link" ox="0" oy="0" oz="0.12"/>
+    <xacro:arm_segment link="arm_upper_link" length="${ARM_LINKS['upper_arm']}"
+                       width="0.09" height="0.12" mass="8.0"/>
+
+    <!-- elbow pitch / forearm -->
+    <xacro:arm_joint index="${2}" parent="arm_upper_link" child="arm_forearm_link"
+                     ox="${ARM_LINKS['upper_arm']}" oy="0" oz="0"/>
+    <xacro:arm_segment link="arm_forearm_link" length="${ARM_LINKS['forearm']}"
+                       width="0.07" height="0.09" mass="6.0"/>
+
+    <!-- wrist pitch -->
+    <xacro:arm_joint index="${3}" parent="arm_forearm_link" child="arm_wrist_link"
+                     ox="${ARM_LINKS['forearm']}" oy="0" oz="0"/>
+    <xacro:arm_segment link="arm_wrist_link" length="${ARM_LINKS['wrist']}"
+                       width="0.07" height="0.07" mass="3.0"/>
+
+    <!-- wrist roll barrel (length is a styling constant, no SSOT entry) -->
+    <xacro:arm_joint index="${4}" parent="arm_wrist_link" child="arm_wrist_roll_link"
+                     ox="${ARM_LINKS['wrist']}" oy="0" oz="0"/>
+    <link name="arm_wrist_roll_link">
+      <xacro:inertial_cylinder_x mass="1.5" radius="0.045" length="0.10" ox="0.05"/>
+      <visual name="barrel">
+        <origin xyz="0.05 0 0" rpy="0 ${math.pi/2} 0"/>
+        <geometry><cylinder radius="0.045" length="0.10"/></geometry>
+        <material name="arm_dark"/>
+      </visual>
+      <collision name="arm_wrist_roll_collision">
+        <origin xyz="0.05 0 0" rpy="0 ${math.pi/2} 0"/>
+        <geometry><cylinder radius="0.045" length="0.10"/></geometry>
+      </collision>
+    </link>
+
+    <!-- tool pitch / adapter with flange disc -->
+    <xacro:arm_joint index="${5}" parent="arm_wrist_roll_link" child="arm_tool_adapter_link"
+                     ox="0.10" oy="0" oz="0"/>
+    <link name="arm_tool_adapter_link">
+      <xacro:inertial_box mass="2.0" sx="${ARM_LINKS['tool_adapter']}" sy="0.07" sz="0.07"
+                          ox="${ARM_LINKS['tool_adapter']/2.0}"/>
+      <visual name="adapter">
+        <origin xyz="${ARM_LINKS['tool_adapter']/2.0} 0 0" rpy="0 0 0"/>
+        <geometry><box size="${ARM_LINKS['tool_adapter']} 0.07 0.07"/></geometry>
+        <material name="arm_orange"/>
+      </visual>
+      <visual name="flange_disc">
+        <origin xyz="${ARM_LINKS['tool_adapter']} 0 0" rpy="0 ${math.pi/2} 0"/>
+        <geometry><cylinder radius="${R['flange']['bolt_circle_diameter']/2.0 + 0.005}" length="0.02"/></geometry>
+        <material name="hub_steel"/>
+      </visual>
+      <collision name="arm_tool_adapter_collision">
+        <origin xyz="${ARM_LINKS['tool_adapter']/2.0} 0 0" rpy="0 0 0"/>
+        <geometry><box size="${ARM_LINKS['tool_adapter']} 0.07 0.07"/></geometry>
+      </collision>
+    </link>
+
+    <!-- Common flange frame: +z out of the flange face. -->
+    <joint name="tool0_joint" type="fixed">
+      <parent link="arm_tool_adapter_link"/>
+      <child link="tool0"/>
+      <origin xyz="${ARM_LINKS['tool_adapter']} 0 0" rpy="0 ${math.pi/2} 0"/>
+    </joint>
+    <link name="tool0">
+      <xacro:inertial_box mass="0.5" sx="0.05" sy="0.05" sz="0.05"/>
+    </link>
+  </xacro:macro>
+
+</robot>

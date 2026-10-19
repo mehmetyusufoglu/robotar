@@ -1,0 +1,34 @@
+# ROS 2 build products
+ws/build/
+ws/install/
+ws/log/
+
+# Third-party checkouts managed by config/third_party.repos
+third_party/
+
+# Python environments and caches
+venvs/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Runtime output and large experiment data
+data/logs/
+data/bags/
+data/results/
+data/datasets/
+*.bag
+*.mcap
+
+# Local environment and secrets
+.env
+.env.*
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+core
+core.*

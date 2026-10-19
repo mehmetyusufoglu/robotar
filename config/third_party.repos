@@ -1,0 +1,9 @@
+repositories:
+  third_party/robot_workspaces:
+    type: git
+    url: https://github.com/ysftzc/robot_workspaces.git
+    version: bf3e2c15817a0b17d6b6990ae57e185e7cfcc98f
+  third_party/amiga-ros2-bridge:
+    type: git
+    url: https://github.com/ucmercedrobotics/amiga-ros2-bridge.git
+    version: c3565950d384e0e1c20d179e9c862c8853f840e8

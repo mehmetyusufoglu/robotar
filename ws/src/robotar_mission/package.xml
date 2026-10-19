@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>robotar_mission</name>
+  <version>0.1.0</version>
+  <description>
+    Scripted mission layer for the Robotar olive-harvesting vertical slice.
+    odom_driver performs the closed-loop row drive using drive_controller
+    odometry; harvest_demo runs the
+    WAIT_FOR_CONTROLLERS -> STOW -> DRIVE_TO_TREE -> STOP -> PRE_POSITION ->
+    INSERT -> COMB -> DETACH -> RETRACT -> DONE
+    state machine with base-stationary comb interlock, comb/branch contact
+    gating and detachable-olive acknowledgement handling. Scenario geometry
+    comes from robotar_gazebo/config/orchard.yaml and robot geometry from
+    robotar_description/config/physical.yaml; this package adds only mission
+    timing, tolerances, arm poses and comb parameters (harvest_demo.yaml).
+  </description>
+  <maintainer email="memo@users.noreply.github.com">memo</maintainer>
+  <license>Apache-2.0</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>robotar_description</exec_depend>
+  <exec_depend>robotar_gazebo</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>control_msgs</exec_depend>
+  <exec_depend>trajectory_msgs</exec_depend>
+  <exec_depend>ros_gz_interfaces</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
