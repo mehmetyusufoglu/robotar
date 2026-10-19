@@ -9,7 +9,7 @@ robotar:
       mass: 180.0
     ground_clearance: 0.18
     wheelbase: 1.10
-    wheel_track: 0.95
+    wheel_track: 1.36
     wheel_radius: 0.25
     wheel_width: 0.18
     wheel_mass: 18.0

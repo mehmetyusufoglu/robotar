@@ -68,6 +68,8 @@ ROBOTAR_GUI=1 ROBOTAR_GPU_RENDER=1 ROBOTAR_TOOL=comb \
 
 The rover drives approximately 3 m, stops, positions the arm, spins the comb only while stationary, requires physical comb/branch contact, releases the six targeted olives, and retracts. Gazebo shows the orchard and open comb guard; RViz shows the robot model, TF and the live `/camera/mast/image_raw` RGB image. Stop the remaining simulation windows with **Ctrl-C** in the launch terminal.
 
+Do not use Gazebo's world/model **Reset** button in this MVP. The robot is spawned from `robot_description` after the world starts; Gazebo reset removes that spawned model without rerunning the ROS spawn and controller bringup. Restart with Ctrl-C and the run script instead. A safe lifecycle reset supervisor remains future work.
+
 Run headless instead with `ROBOTAR_GUI=0`. Run the safety-gate check, which is expected to fail cleanly without publishing detach commands:
 
 ```bash
