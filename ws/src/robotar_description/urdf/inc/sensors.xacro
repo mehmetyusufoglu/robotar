@@ -22,12 +22,17 @@
     </joint>
     <link name="mast_link">
       <!-- Pole runs from the chassis deck up to the mast head. -->
-      <xacro:property name="deck_z" value="${CHASSIS['center_height'] + CHASSIS['height']/2.0}"/>
+      <xacro:property name="deck_z" value="${CHASSIS['height']/2.0}"/>
       <xacro:property name="pole_len" value="${MAST['xyz'][2] - deck_z}"/>
       <xacro:inertial_cylinder_z mass="4.0" radius="0.035" length="${pole_len}" oz="${-pole_len/2.0}"/>
       <visual name="pole">
         <origin xyz="0 0 ${-pole_len/2.0}" rpy="0 0 0"/>
         <geometry><cylinder radius="0.035" length="${pole_len}"/></geometry>
+        <material name="mast_steel"/>
+      </visual>
+      <visual name="neck">
+        <origin xyz="0 0 ${(MAST['camera_xyz'][2] - 0.03)/2.0}" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.03" length="${MAST['camera_xyz'][2] - 0.03}"/></geometry>
         <material name="mast_steel"/>
       </visual>
       <visual name="foot">

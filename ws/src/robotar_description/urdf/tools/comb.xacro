@@ -81,6 +81,11 @@
       <xacro:inertial_box mass="${COMB['mass'] - 0.8}"
                           sx="${COMB['size'][0]}" sy="${COMB['size'][1]}" sz="${COMB['size'][2]}"
                           oz="${0.02 + COMB['size'][2]/2.0}"/>
+      <visual name="flange_adapter">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><cylinder radius="${R['flange']['bolt_circle_diameter']/2.0 + 0.005}" length="0.04"/></geometry>
+        <material name="hub_steel"/>
+      </visual>
       <visual name="top_guard_plate">
         <origin xyz="0 0 ${COMB['size'][2]}" rpy="0 0 0"/>
         <geometry><box size="${COMB['size'][0]} ${COMB['size'][1]} 0.04"/></geometry>

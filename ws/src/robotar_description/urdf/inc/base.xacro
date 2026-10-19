@@ -66,6 +66,16 @@
     </visual>
   </xacro:macro>
 
+  <!-- Fixed visual axle connecting the chassis side to a wheel hub. The
+       physical wheel contact remains the wheel's own collision cylinder. -->
+  <xacro:macro name="wheel_axle" params="name px py">
+    <visual name="${name}">
+      <origin xyz="${px} ${math.copysign((BASE['wheel_track']/2.0 + CHASSIS['width']/2.0)/2.0, py)} ${BASE['wheel_radius'] - CHASSIS['center_height']}" rpy="${math.pi/2} 0 0"/>
+      <geometry><cylinder radius="0.045" length="${BASE['wheel_track']/2.0 - CHASSIS['width']/2.0 + 0.04}"/></geometry>
+      <material name="hub_steel"/>
+    </visual>
+  </xacro:macro>
+
   <!-- Lugged field wheel: tire + hub + eight tread lugs, smooth cylinder
        collision (lugs are visual-only) and high-friction contact surface. -->
   <xacro:macro name="lugged_wheel" params="link joint px py">
@@ -171,6 +181,11 @@
         <geometry><box size="${0.8*CHASSIS['length']} ${0.78*CHASSIS['width']} ${skid_t}"/></geometry>
       </collision>
     </link>
+
+    <xacro:wheel_axle name="fl_axle" px="${ BASE['wheelbase']/2.0}" py="${ BASE['wheel_track']/2.0}"/>
+    <xacro:wheel_axle name="rl_axle" px="${-BASE['wheelbase']/2.0}" py="${ BASE['wheel_track']/2.0}"/>
+    <xacro:wheel_axle name="fr_axle" px="${ BASE['wheelbase']/2.0}" py="${-BASE['wheel_track']/2.0}"/>
+    <xacro:wheel_axle name="rr_axle" px="${-BASE['wheelbase']/2.0}" py="${-BASE['wheel_track']/2.0}"/>
 
     <xacro:lugged_wheel link="fl_wheel_link" joint="${BASE['wheel_joints']['front_left']}"
                         px="${ BASE['wheelbase']/2.0}" py="${ BASE['wheel_track']/2.0}"/>
