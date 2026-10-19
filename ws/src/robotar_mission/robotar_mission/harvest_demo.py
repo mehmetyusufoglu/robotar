@@ -34,6 +34,7 @@ from rclpy.duration import Duration
 from rclpy.node import Node
 
 from control_msgs.action import FollowJointTrajectory
+from controller_manager_msgs.srv import ListControllers
 from nav_msgs.msg import Odometry
 from ros_gz_interfaces.msg import Contacts
 from sensor_msgs.msg import JointState
@@ -113,6 +114,13 @@ class HarvestDemo(Node):
         self.bank_collisions = list(orchard["contacts"]["tool_collisions"])
 
         self.arm_joints = [j["name"] for j in physical["arm"]["joints"]]
+        controllers = physical_doc["control"]["controllers"]
+        self.required_controllers = [
+            controllers["joint_states"],
+            controllers["drive"],
+            controllers["arm"],
+            controllers["comb"],
+        ]
         topics = physical_doc["topics"]
         self.arm_action_name = topics["arm_action"]
         self.comb_command_topic = topics["comb_command"]
@@ -136,6 +144,9 @@ class HarvestDemo(Node):
         # ------------------------------------------------------------ comms
         self.arm_client = ActionClient(
             self, FollowJointTrajectory, self.arm_action_name
+        )
+        self.controller_client = self.create_client(
+            ListControllers, "/controller_manager/list_controllers"
         )
         self.comb_pub = self.create_publisher(
             Float64MultiArray, self.comb_command_topic, 10
@@ -173,6 +184,8 @@ class HarvestDemo(Node):
         self.state_entered = None   # sim time of state entry
         self.drive_status = None
         self.joint_states_seen = False
+        self.controllers_active = False
+        self.controller_query = None
         self.traj_active = False
         self.traj_done = False
         self.traj_success = False
@@ -362,6 +375,43 @@ class HarvestDemo(Node):
                 return
             self._set_comb(True)
 
+    def _controllers_are_active(self):
+        if self.controllers_active:
+            return True
+        if not self.controller_client.service_is_ready():
+            return False
+        if self.controller_query is None:
+            self.controller_query = self.controller_client.call_async(
+                ListControllers.Request()
+            )
+            return False
+        if not self.controller_query.done():
+            return False
+
+        try:
+            result = self.controller_query.result()
+        except Exception as error:
+            self.get_logger().warn(f"controller state query failed: {error}")
+            self.controller_query = None
+            return False
+
+        states = {
+            controller.name: controller.state for controller in result.controller
+        }
+        inactive = [
+            name for name in self.required_controllers
+            if states.get(name) != "active"
+        ]
+        if inactive:
+            self.controller_query = None
+            return False
+
+        self.controllers_active = True
+        self.get_logger().info(
+            f"required controllers active: {self.required_controllers}"
+        )
+        return True
+
     def _tick_wait(self):
         timeout = float(self.get_parameter("controller_wait_timeout_s").value)
         ready = (
@@ -369,6 +419,7 @@ class HarvestDemo(Node):
             and self.odom is not None
             and self.drive_status is not None
             and self.joint_states_seen
+            and self._controllers_are_active()
         )
         if ready:
             self.get_logger().info("controllers and odometry available")
