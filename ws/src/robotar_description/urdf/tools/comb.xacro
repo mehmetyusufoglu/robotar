@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!--
-  comb tool: guarded twin counter-rotating comb banks on the tool0 flange.
+  comb tool: open-frame guarded twin counter-rotating comb banks on the tool0 flange.
 
   Rotor joint names, collision names, housing size and the total tool mass
   come from physical.yaml (COMB). Both rotor axes point along tool0 +z;
@@ -81,9 +81,19 @@
       <xacro:inertial_box mass="${COMB['mass'] - 0.8}"
                           sx="${COMB['size'][0]}" sy="${COMB['size'][1]}" sz="${COMB['size'][2]}"
                           oz="${0.02 + COMB['size'][2]/2.0}"/>
-      <visual name="housing">
-        <origin xyz="0 0 ${0.02 + COMB['size'][2]/2.0}" rpy="0 0 0"/>
-        <geometry><box size="${COMB['size'][0]} ${COMB['size'][1]} ${COMB['size'][2]}"/></geometry>
+      <visual name="top_guard_plate">
+        <origin xyz="0 0 ${COMB['size'][2]}" rpy="0 0 0"/>
+        <geometry><box size="${COMB['size'][0]} ${COMB['size'][1]} 0.04"/></geometry>
+        <material name="comb_guard"/>
+      </visual>
+      <visual name="left_guard_rail">
+        <origin xyz="0 ${COMB['size'][1]/2.0 - 0.015} ${0.02 + COMB['size'][2]/2.0}" rpy="0 0 0"/>
+        <geometry><box size="${COMB['size'][0]} 0.03 ${COMB['size'][2] - 0.07}"/></geometry>
+        <material name="comb_guard"/>
+      </visual>
+      <visual name="right_guard_rail">
+        <origin xyz="0 ${-COMB['size'][1]/2.0 + 0.015} ${0.02 + COMB['size'][2]/2.0}" rpy="0 0 0"/>
+        <geometry><box size="${COMB['size'][0]} 0.03 ${COMB['size'][2] - 0.07}"/></geometry>
         <material name="comb_guard"/>
       </visual>
       <visual name="left_motor_pod">

@@ -45,7 +45,7 @@ The YOLO setup supports CPU and CUDA PyTorch 2.14.1 builds and uses a NumPy/Open
 
 ## Robotar olive-harvesting platform
 
-The first-party MVP is an original four-wheel skid-steer field rover with a side-mounted 6-DOF arm, mast RGB-D camera, chassis IMU and launch-selectable tools. The `comb` tool has twin counter-rotating harvesting banks; the `gripper` tool proves the interchangeable flange/controller interface. The generated orchard contains two rows of low-poly olive trees, one instrumented branch, six dynamic olives and a catch net.
+The first-party MVP is an original four-wheel skid-steer field rover with a side-mounted 6-DOF arm, mast RGB-D camera, chassis IMU and launch-selectable tools. The `comb` tool has twin counter-rotating tine banks visible through an open guard frame; the `gripper` tool proves the interchangeable flange/controller interface. The generated orchard contains two rows of low-poly olive trees, one instrumented branch, six dynamic olives and a catch net.
 
 Single sources of truth:
 
@@ -66,7 +66,7 @@ ROBOTAR_GUI=1 ROBOTAR_GPU_RENDER=1 ROBOTAR_TOOL=comb \
   ./scripts/robotar_run_harvest.sh
 ```
 
-The rover drives approximately 3 m, stops, positions the arm, spins the comb only while stationary, requires physical comb/branch contact, releases the six targeted olives, and retracts. Stop the remaining simulation windows with **Ctrl-C** in the launch terminal.
+The rover drives approximately 3 m, stops, positions the arm, spins the comb only while stationary, requires physical comb/branch contact, releases the six targeted olives, and retracts. Gazebo shows the orchard and open comb guard; RViz shows the robot model, TF and the live `/camera/mast/image_raw` RGB image. Stop the remaining simulation windows with **Ctrl-C** in the launch terminal.
 
 Run headless instead with `ROBOTAR_GUI=0`. Run the safety-gate check, which is expected to fail cleanly without publishing detach commands:
 
