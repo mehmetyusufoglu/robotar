@@ -45,7 +45,7 @@ The YOLO setup supports CPU and CUDA PyTorch 2.14.1 builds and uses a NumPy/Open
 
 ## Robotar olive-harvesting platform
 
-The first-party MVP is an original four-wheel skid-steer field rover with a side-mounted 6-DOF arm, mast RGB-D camera, chassis IMU and launch-selectable tools. The `comb` tool has twin counter-rotating tine banks visible through an open guard frame; the `gripper` tool proves the interchangeable flange/controller interface. The generated orchard contains two rows of low-poly olive trees, one instrumented branch, six dynamic olives and a catch net.
+The first-party MVP is an original four-wheel skid-steer field rover with a side-mounted 6-DOF arm, mast RGB-D camera, chassis IMU and launch-selectable tools. The arm has a chassis-connected pedestal and visible joint bearing caps; wheels, mast, camera, flange and tool are visually connected. The `comb` tool has twin counter-rotating tine banks visible through an open guard frame; the `gripper` tool proves the interchangeable flange/controller interface. The generated orchard contains two rows of low-poly olive trees, one instrumented branch, six dynamic olives and a catch net.
 
 Single sources of truth:
 
@@ -70,7 +70,7 @@ The rover drives approximately 3 m, stops, positions the arm, spins the comb onl
 
 Do not use Gazebo's world/model **Reset** button in this MVP. The robot is spawned from `robot_description` after the world starts; Gazebo reset removes that spawned model without rerunning the ROS spawn and controller bringup. Restart with Ctrl-C and the run script instead. A safe lifecycle reset supervisor remains future work.
 
-Robot links do not self-collide by default, canopy foliage is not modeled as individual collision bodies, and comb tines use coarse swept collision cylinders. These are deliberate MVP simplifications that prevent adjacent joints and dense foliage from locking the simulation. Visual axles, mast connections and the tool flange adapter are modeled; selective self-collision and contact filtering are future work.
+Robot links do not self-collide by default, canopy foliage is not modeled as individual collision bodies, and comb tines use coarse swept collision cylinders. These are deliberate MVP simplifications that prevent adjacent joints and dense foliage from locking the simulation. Visual axles, mast connections, the arm pedestal, joint bearing caps and the tool flange adapter are modeled; a generated-URDF adjacency check confirms that visible parent/child bounds touch or overlap for both tools. Selective self-collision and contact filtering are future work.
 
 Run headless instead with `ROBOTAR_GUI=0`. Run the safety-gate check, which is expected to fail cleanly without publishing detach commands:
 

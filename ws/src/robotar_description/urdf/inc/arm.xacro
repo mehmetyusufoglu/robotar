@@ -16,7 +16,9 @@
 -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <!-- Box arm segment extending along +x from its parent joint. -->
+  <!-- Box arm segment extending along +x from its parent joint, with a
+       visual bearing cap covering the proximal joint seam. The cap is
+       visual-only so it does not change the validated contact behavior. -->
   <xacro:macro name="arm_segment" params="link length width height mass">
     <link name="${link}">
       <xacro:inertial_box mass="${mass}" sx="${length}" sy="${width}" sz="${height}"
@@ -25,6 +27,11 @@
         <origin xyz="${length/2.0} 0 0" rpy="0 0 0"/>
         <geometry><box size="${length} ${width} ${height}"/></geometry>
         <material name="arm_orange"/>
+      </visual>
+      <visual name="proximal_bearing">
+        <origin xyz="0 0 0" rpy="${math.pi/2} 0 0"/>
+        <geometry><cylinder radius="${height/2.0 + 0.01}" length="${width + 0.02}"/></geometry>
+        <material name="arm_dark"/>
       </visual>
       <collision name="${link}_collision">
         <origin xyz="${length/2.0} 0 0" rpy="0 0 0"/>
@@ -56,15 +63,19 @@
               rpy="${' '.join(map(str, ARM['mount_rpy']))}"/>
     </joint>
     <link name="arm_base_link">
-      <xacro:inertial_cylinder_z mass="6.0" radius="0.11" length="0.16" oz="-0.05"/>
+      <xacro:property name="pedestal_bottom" value="${CHASSIS['height']/2.0 - ARM['mount_xyz'][2]}"/>
+      <xacro:property name="pedestal_top" value="0.08"/>
+      <xacro:property name="pedestal_length" value="${pedestal_top - pedestal_bottom}"/>
+      <xacro:property name="pedestal_center" value="${(pedestal_top + pedestal_bottom)/2.0}"/>
+      <xacro:inertial_cylinder_z mass="8.0" radius="0.11" length="${pedestal_length}" oz="${pedestal_center}"/>
       <visual name="pedestal">
-        <origin xyz="0 0 -0.05" rpy="0 0 0"/>
-        <geometry><cylinder radius="0.11" length="0.16"/></geometry>
+        <origin xyz="0 0 ${pedestal_center}" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.11" length="${pedestal_length}"/></geometry>
         <material name="arm_dark"/>
       </visual>
       <collision name="arm_base_collision">
-        <origin xyz="0 0 -0.05" rpy="0 0 0"/>
-        <geometry><cylinder radius="0.11" length="0.16"/></geometry>
+        <origin xyz="0 0 ${pedestal_center}" rpy="0 0 0"/>
+        <geometry><cylinder radius="0.11" length="${pedestal_length}"/></geometry>
       </collision>
     </link>
 

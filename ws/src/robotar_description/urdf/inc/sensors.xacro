@@ -128,12 +128,25 @@
       <origin xyz="${' '.join(map(str, IMU['xyz']))}" rpy="0 0 0"/>
     </joint>
     <link name="${IMU['link']}">
+      <xacro:property name="imu_bracket_bottom" value="${CHASSIS['height']/2.0 - IMU['xyz'][2]}"/>
+      <xacro:property name="imu_bracket_top" value="-0.015"/>
+      <xacro:property name="imu_bracket_length" value="${imu_bracket_top - imu_bracket_bottom}"/>
+      <xacro:property name="imu_bracket_center" value="${(imu_bracket_top + imu_bracket_bottom)/2.0}"/>
       <xacro:inertial_box mass="0.1" sx="0.05" sy="0.05" sz="0.03"/>
+      <visual name="mounting_bracket">
+        <origin xyz="0 0 ${imu_bracket_center}" rpy="0 0 0"/>
+        <geometry><box size="0.08 0.08 ${imu_bracket_length}"/></geometry>
+        <material name="mast_steel"/>
+      </visual>
       <visual name="pod">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry><box size="0.05 0.05 0.03"/></geometry>
         <material name="sensor_black"/>
       </visual>
+      <collision name="imu_bracket_collision">
+        <origin xyz="0 0 ${imu_bracket_center}" rpy="0 0 0"/>
+        <geometry><box size="0.08 0.08 ${imu_bracket_length}"/></geometry>
+      </collision>
       <collision name="imu_collision">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry><box size="0.05 0.05 0.03"/></geometry>
