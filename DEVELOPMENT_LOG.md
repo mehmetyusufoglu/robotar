@@ -320,6 +320,19 @@ Evidence/log path:
 
 **Result:** the research base for the clamp-shaker requirement freeze is now version-controlled.
 
+### 2026-10-20 — Difficult-terrain mobility research
+
+**Goal:** find literature for stable motion and forceful work on slopes and rough orchard terrain.
+
+**Work performed:**
+
+- Reviewed open literature on agricultural UGV stability, hilly orchard path planning, orchard MPC and anti-slip control, adaptive platform leveling, rollover margins, tracked locomotion, Nav2 and MPPI.
+- Downloaded and verified twelve additional open-access PDFs.
+- Verified the user-provided Hoshyarmanesh olive-tree vibration paper and Ji adaptive-impedance paper.
+- Expanded `analysis-papers/README.md` with a terrain-reading order, source links and browser-access papers that were bot-blocked for automated download.
+
+**Result:** the next platform phase can be based on documented stability metrics, traction/slip modeling, active leveling and terrain-aware navigation instead of ad-hoc slope handling.
+
 ## Current next action
 
 Continue the branch clamp-shaker investigation using `analysis-papers/README.md`, then freeze the first mechanical/control requirements before implementing the new `shaker` end-effector in simulation.
