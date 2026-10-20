@@ -2,6 +2,8 @@
 
 This workspace contains the original Robotar olive-harvesting simulation plus two isolated third-party agricultural references. Project-owned files live under `/home/memo/projects/robotar`; ROS and other APT dependencies remain in their standard system locations.
 
+See [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md) for the trial history, design decisions, current branch clamp-shaker direction and next development steps.
+
 ## Verified status
 
 | Simulation | Environment | Verified result |
