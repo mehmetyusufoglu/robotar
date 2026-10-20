@@ -72,13 +72,29 @@ For perception:
 | `lightweight_branch_segmentation_2026.pdf` | [LDS-Net: A Lightweight Dual-Branch Network for Slender Tree Branch Segmentation in Complex Natural Scenes, Forests 2026](https://www.mdpi.com/1999-4907/17/7/811) | 23 | Lightweight semantic segmentation for slender branches; relevant to branch masks and shake-point selection. |
 | `orchard_panoptic_segmentation_2025.pdf` | [3D Hierarchical Panoptic Segmentation in Real Orchard Environments Across Different Sensors, arXiv 2025](https://arxiv.org/abs/2503.13188) | 8 | 3D orchard instance/panoptic segmentation across sensors; relevant to trunk/branch/fruit spatial understanding. |
 
-## Browser-access or library-access papers
+## Browser-access open-repository papers
 
-These links are legal open repositories or publisher pages, but automated download was blocked. Download them in a browser or through institutional access if needed:
+These links are legal open repositories, but automated download was blocked. Download them in a browser if needed:
 
 - [Denis et al., *Slip and Cornering Stiffnesses Observation for the Stability Assessment of Off-road Vehicles*, HAL 2015](https://hal.science/hal-01368574) — lateral/longitudinal load-transfer estimation on a grape harvester.
 - [Dieumet et al., *Low cost active devices to estimate and prevent off-road vehicle from rollover*, HAL 2017](https://hal.inrae.fr/hal-02607282) — load-transfer indicator coupled to active slope correction.
 - [Fankhauser et al., *Probabilistic Terrain Mapping for Mobile Robots with Uncertain Localization*, ETH Research Collection 2018](https://www.research-collection.ethz.ch/handle/20.500.11850/272110) — robot-centric elevation mapping with uncertainty.
+
+## Library-access agricultural robotics reviews and key studies
+
+The following are not available as legal open PDFs from the publisher. Obtain them through a university/library, interlibrary loan or author request; do not use unofficial mirrors:
+
+- [Bechar and Vigneault, *Agricultural robots for field operations: Concepts and components*, Biosystems Engineering 2016](https://doi.org/10.1016/j.biosystemseng.2016.06.014) — foundational agricultural field-robot taxonomy.
+- [Bechar and Vigneault, *Agricultural robots for field operations. Part 2: Operations and systems*, Biosystems Engineering 2017](https://doi.org/10.1016/j.biosystemseng.2016.11.004) — operations/system-level continuation.
+- [Vougioukas, *Agricultural Robotics*, Annual Review of Control, Robotics, and Autonomous Systems 2019](https://doi.org/10.1146/annurev-control-053018-023617) — broad review of agricultural robot platforms, manipulation and field autonomy.
+- [Ren, Huang and Yin, *A review of the large-scale application of autonomous mobility of agricultural platform*, Computers and Electronics in Agriculture 2023](https://doi.org/10.1016/j.compag.2023.107628) — autonomous agricultural mobility at field scale.
+- [Bai et al., *Vision-based navigation and guidance for agricultural autonomous vehicles and robots: A review*, Computers and Electronics in Agriculture 2023](https://doi.org/10.1016/j.compag.2022.107584) — machine-vision navigation and guidance review.
+- [Bochtis, Sørensen and Busato, *Advances in agricultural machinery management: A review*, Biosystems Engineering 2014](https://doi.org/10.1016/j.biosystemseng.2014.07.012) — machinery-management review.
+- [Marinoudi et al., *Robotics and labour in agriculture: A context consideration*, Biosystems Engineering 2019](https://doi.org/10.1016/j.biosystemseng.2019.06.013) — labor/economic context for agricultural robot adoption.
+- [Vasconez, Kantor and Cheein, *Human–robot interaction in agriculture: A survey and current challenges*, Biosystems Engineering 2019](https://doi.org/10.1016/j.biosystemseng.2018.12.005) — supervised operation, safety and interaction.
+- [Benos, Bechar and Bochtis, *Safety and ergonomics in human-robot interactive agricultural operations*, Biosystems Engineering 2020](https://doi.org/10.1016/j.biosystemseng.2020.09.009) — safety/ergonomics for farm human-robot operations.
+- [Bac et al., *Harvesting robots for high-value crops: State-of-the-art review and challenges ahead*, Journal of Field Robotics 2014](https://doi.org/10.1002/rob.21525) — harvesting-robot review with crop-environment analysis.
+- [Ju et al., *A review on multirobot systems in agriculture*, Computers and Electronics in Agriculture 2022](https://doi.org/10.1016/j.compag.2022.107336) — multi-robot systems and scaling considerations.
 - [Vidoni et al., *Evaluation and stability comparison of different vehicle configurations for robotic agricultural operations on side-slopes*, Biosystems Engineering 2015](https://doi.org/10.1016/j.biosystemseng.2014.10.003) — vehicle-configuration comparison on side slopes.
 - [Bayar et al., *Improving the trajectory tracking performance of autonomous orchard vehicles using wheel slip compensation*, Biosystems Engineering 2016](https://doi.org/10.1016/j.biosystemseng.2016.02.014) — orchard wheel-slip compensation.
 

@@ -333,6 +333,17 @@ Evidence/log path:
 
 **Result:** the next platform phase can be based on documented stability metrics, traction/slip modeling, active leveling and terrain-aware navigation instead of ad-hoc slope handling.
 
+### 2026-10-20 — Library-access review list
+
+**Goal:** identify important agricultural-robotics reviews and platform studies that are not available as legal open PDFs.
+
+**Work performed:**
+
+- Added exact titles, publisher/DOI links and relevance notes to `analysis-papers/README.md`.
+- Covered foundational agricultural field-robot reviews, autonomous mobility, vision-based navigation, machinery management, labor/economics, human-robot interaction, safety/ergonomics, harvesting robots, multi-robot systems and side-slope/slip studies.
+
+**Result:** missing papers can be requested through a university/library or from authors without using unofficial mirrors.
+
 ## Current next action
 
 Continue the branch clamp-shaker investigation using `analysis-papers/README.md`, then freeze the first mechanical/control requirements before implementing the new `shaker` end-effector in simulation.
