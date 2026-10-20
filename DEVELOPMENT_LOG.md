@@ -308,6 +308,18 @@ Decision/next action:
 Evidence/log path:
 ```
 
+### 2026-10-20 — Analysis paper library
+
+**Goal:** collect open-access references for the branch clamp-shaker investigation.
+
+**Work performed:**
+
+- Created `analysis-papers/`.
+- Downloaded and verified seven open-access PDFs covering olive mechanization, trunk-shaker power, branch vibration, fruit-stem dynamics, olive detection, branch segmentation and orchard 3D segmentation.
+- Created `analysis-papers/README.md` with reading order, source links, relevance and papers still needed from the user or library access.
+
+**Result:** the research base for the clamp-shaker requirement freeze is now version-controlled.
+
 ## Current next action
 
-Continue the branch clamp-shaker investigation and freeze the first mechanical/control requirements before implementing the new `shaker` end-effector in simulation.
+Continue the branch clamp-shaker investigation using `analysis-papers/README.md`, then freeze the first mechanical/control requirements before implementing the new `shaker` end-effector in simulation.

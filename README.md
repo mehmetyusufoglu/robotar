@@ -17,6 +17,7 @@ All verification workloads were stopped after testing. No demo containers or ROS
 ## Layout
 
 ```text
+analysis-papers/             Open-access papers and reading index
 config/third_party.repos     Canonical upstream URLs and base revisions
 docker/amiga/compose.yaml    Isolated Amiga/noVNC runtime
 scripts/                     Dependency, build, run and stop entry points
