@@ -33,6 +33,17 @@ orchard:
       tip_xyz: [3.5, -2.55, 1.42]
       radius: 0.035
       length: 0.90
+      mass: 2.0
+      # Compliant-branch approximation: revolute joint with SDF spring/damper
+      # dynamics at the branch base (verified honored by Gazebo Harmonic
+      # 8.15 / DART). Stiffness/damping are simulation tuning values sized
+      # so the 0.9 m, ~2 kg branch resonates inside the 10-25 Hz shaker
+      # sweep envelope ((1/2pi)*sqrt(k/I) ~ 12 Hz for I ~ 0.54 kg m^2);
+      # they are not measured wood properties.
+      spring:
+        stiffness: 3000.0
+        damping: 30.0
+        reference: 0.0
     olive_count: 6
     olives:
       prefix: olive_target
@@ -55,4 +66,7 @@ orchard:
     state_pattern: /harvest/{olive}/state
   contacts:
     tool_collisions: [comb_left_bank_collision, comb_right_bank_collision]
+    # Jaw pad collisions for the shaker clamp-verification gate (names match
+    # physical.yaml robotar.tools.shaker.clamp.pad_collisions).
+    shaker_tool_collisions: [shaker_left_pad_collision, shaker_right_pad_collision]
     branch_collision: target_branch_collision

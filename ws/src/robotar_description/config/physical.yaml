@@ -56,25 +56,33 @@ robotar:
         axis: [0.0, 1.0, 0.0]
         lower: -1.75
         upper: 1.75
-        # Holds ~170 Nm of static gravity torque at full horizontal reach
-        # with the comb mounted; 320 Nm is a simulation tuning value with
+        # Holds ~250 Nm of static gravity torque at full horizontal reach
+        # with the shaker mounted; 450 Nm is a simulation tuning value with
         # tracking margin, not a hardware rating.
-        effort: 320.0
+        effort: 450.0
         velocity: 0.7
       - name: arm_elbow_pitch_joint
         type: revolute
         axis: [0.0, 1.0, 0.0]
         lower: -2.20
         upper: 2.20
-        # ~90 Nm static at full reach; 180 Nm is a simulation tuning value.
-        effort: 180.0
+        # ~130 Nm static at full reach with the shaker; 260 Nm is a
+        # simulation tuning value.
+        effort: 260.0
         velocity: 0.8
       - name: arm_wrist_pitch_joint
         type: revolute
         axis: [0.0, 1.0, 0.0]
-        lower: -2.10
-        upper: 2.10
-        effort: 70.0
+        # Range widened past the mission envelope: transient trajectory
+        # overshoot near the hard limit can latch the joint on DART's limit
+        # constraint, so the working poses keep >= 0.15 rad margin.
+        lower: -2.35
+        upper: 2.35
+        # ~35 Nm static with the shaker held near horizontal; 120 Nm is a
+        # simulation tuning value with servo-tracking margin. An
+        # under-margined wrist lets the joint sag onto its position limit
+        # during the clamp slide, where DART's limit constraint latches it.
+        effort: 120.0
         velocity: 1.0
       - name: arm_wrist_roll_joint
         type: revolute
@@ -88,7 +96,10 @@ robotar:
         axis: [0.0, 1.0, 0.0]
         lower: -1.90
         upper: 1.90
-        effort: 45.0
+        # ~11 Nm static with the shaker; 120 Nm is a simulation tuning
+        # value — the distal pitch servos need the same tracking margin as
+        # the wrist to avoid gravity sag during the clamp slide.
+        effort: 120.0
         velocity: 1.2
     link_lengths:
       upper_arm: 0.58
@@ -113,18 +124,99 @@ robotar:
       commanded_joint: gripper_left_joint
       mimic_joint: gripper_right_joint
       max_opening: 0.10
+    # Branch clamp-shaker: enclosed housing with counter-rotating eccentric
+    # rotors plus padded parallel jaws that clamp the branch. All values in
+    # this block are SIMULATION TUNING values anchored in the olive
+    # trunk/branch-shaker literature (Messina et al. 2025 review: <= ~20 Hz,
+    # 1200 beats/min; Camposeo et al. 2023 branch-shaker dynamics), NOT
+    # hardware ratings.
+    shaker:
+      name: shaker
+      # First-prototype mass target (simulation tuning value). Heavier tools
+      # pushed the wrist_pitch velocity servo past its authority during the
+      # clamp slide and sagged the joint onto its limit.
+      mass: 3.2
+      # Housing box in the tool0 frame; the tool extends along tool0 +z and
+      # the jaws protrude beyond the housing top face.
+      housing_size: [0.30, 0.24, 0.18]
+      clamp:
+        commanded_joint: shaker_left_jaw_joint
+        mimic_joint: shaker_right_jaw_joint
+        pad_collisions: [shaker_left_pad_collision, shaker_right_pad_collision]
+        # Jaw travel per jaw is max_opening/2. With pad_face_offset the
+        # clampable branch diameter range is ~30-80 mm, the literature
+        # target-branch envelope (tuning range, not a rating). The opening
+        # is oversized relative to that envelope so the open jaws straddle
+        # the branch with margin for the odom-drive position tolerance.
+        # limit_margin keeps the commanded open/closed positions off the
+        # hard joint limits: in Gazebo/DART a joint driven exactly onto its
+        # limit can latch there and refuse to move off it.
+        max_opening: 0.34
+        limit_margin: 0.005
+        # Jaw opening goal = max_opening/2 - open_margin (0.15 m per jaw),
+        # leaving the pads 0.128 m off-axis — clear of the branch-side
+        # olives along the slide corridor.
+        open_margin: 0.02
+        jaw_thickness: 0.02
+        pad_thickness: 0.012
+        # Distance from the jaw-joint axis line to the pad inner face:
+        # jaw_thickness/2 + pad_thickness. The clamp goal position for a
+        # branch of radius r is r + pad_face_offset (minus interference).
+        pad_face_offset: 0.022
+        pad_size: [0.07, 0.012, 0.07]   # along branch x, across y, vertical z
+        jaw_length: 0.12                # plate extension along +z
+        # Clamp force limit proxy for the GripperActionController (Ji et al.
+        # force-limited grasping to avoid biological damage); tuning value.
+        max_effort: 60.0
+      rotors:
+        joints: [shaker_left_rotor_joint, shaker_right_rotor_joint]
+        mass_each: 0.5
+        radius: 0.055
+        thickness: 0.025
+        # Centre distance between the two rotor planes along tool0 x.
+        spacing: 0.045
+        # Centre-of-mass offset from the rotor axis; spinning the unbalanced
+        # disc produces the real excitation force in the physics sim.
+        eccentricity: 0.03
+        # Operational envelope (simulation tuning values): forcing frequency
+        # f = rotor_speed / 2pi swept over 10-25 Hz; shake held for 3-5 s.
+        min_frequency_hz: 10.0
+        max_frequency_hz: 25.0
+        shake_seconds: 4.0
+      imu:
+        link: shaker_imu_link
+        update_rate: 200.0
   sensors:
     comb_contact:
       topic: /comb/contact
       update_rate: 50.0
+    shaker_imu:
+      topic: /shaker/imu
+      update_rate: 200.0
+    shaker_clamp_contact:
+      topic: /shaker/clamp_contact
+      update_rate: 50.0
 control:
   update_rate: 100
+  # gz_ros2_control GazeboSimSystem position servo: the plugin converts each
+  # position command into a joint velocity command as
+  #   vel_cmd = position_proportional_gain * update_rate * position_error
+  # (one scalar for every position-commanded joint, emitted as the SDF
+  # <position_proportional_gain> plugin element by inc/ros2_control.xacro).
+  # The plugin default (0.1) let the wrist pitch joint get flung ~0.15 rad
+  # past its goal into the URDF limit latch during the fast approach swing
+  # with the 4 kg shaker mounted; 0.3 triples the servo stiffness so the
+  # wrist joints hold and recover inside the trajectory window. Simulation
+  # tuning value, not a hardware servo rating.
+  position_proportional_gain: 0.3
   controllers:
     joint_states: joint_state_broadcaster
     drive: drive_controller
     arm: arm_controller
     comb: comb_controller
     gripper: gripper_controller
+    shaker_clamp: shaker_clamp_controller
+    shaker_rotors: shaker_rotor_controller
 topics:
   cmd_vel: /drive_controller/cmd_vel
   odometry: /drive_controller/odom
@@ -132,9 +224,13 @@ topics:
   arm_action: /arm_controller/follow_joint_trajectory
   comb_command: /comb_controller/commands
   gripper_action: /gripper_controller/gripper_cmd
+  shaker_clamp_action: /shaker_clamp_controller/gripper_cmd
+  shaker_rotor_command: /shaker_rotor_controller/commands
   camera_rgb: /camera/mast/image_raw
   camera_depth: /camera/mast/depth/image_raw
   camera_rgb_info: /camera/mast/camera_info
   camera_depth_info: /camera/mast/depth/camera_info
   imu: /imu/data
   comb_contact: /comb/contact
+  shaker_imu: /shaker/imu
+  shaker_clamp_contact: /shaker/clamp_contact

@@ -1,0 +1,95 @@
+# Mission parameters for the Robotar branch clamp-shaker demo.
+#
+# Scope: mission timing/tolerances, arm joint poses, sweep stepping and the
+# no-contact verification mode. Orchard geometry, olive IDs, branch
+# collision names, drive target, topic names, the clamp geometry
+# (pad_face_offset, max_opening, max_effort) and the operational envelope
+# (10-25 Hz sweep, shake duration) are NOT duplicated here — they come from
+# robotar_gazebo/config/orchard.yaml and
+# robotar_description/config/physical.yaml (paths injected by the launch
+# file).
+#
+# Arm poses are six values in physical.yaml robotar.arm.joints order:
+#   [arm_yaw, shoulder_pitch, elbow_pitch, wrist_pitch, wrist_roll, tool_pitch]
+# They were solved numerically (forward kinematics from physical.yaml, then
+# swept-path collision checks against the orchard/chassis/wheel/olive
+# volumes, robot at the worst-case drive stop x=2.98) so that after driving
+# to drive_to_x the open jaws slide over the branch tip (approach_pose ->
+# clamp_pose) and the pad clamp center lands on target_branch at
+# (3.5, y=-2.70, z=1.44) with the pads closing across the branch axis and
+# approach_pose sharing the exact clamp orientation (pure-translation
+# slide, no tool pitch sweep across the olives).
+# All poses share one joint family (wrist_pitch ~ -1.9) so every
+# interpolated transition stays collision-free. stow_pose is a dedicated
+# shaker carry posture (NOT the comb stow — interpolating from the comb
+# stow dives the wrist into the chassis/wheel). miss_clamp_pose offsets the
+# clamp point 0.18 m in +x so the jaws close on air for the no-contact
+# negative verification.
+#
+# Joint-limit margin: every pose keeps each joint >= 0.15 rad from its
+# physical.yaml URDF limits (verified numerically against the widened
+# wrist_pitch range +/-2.35; the binding margins are shoulder_pitch
+# 1.60 vs 1.75 in stow/pre_position and wrist_pitch -1.95 vs -2.35 in
+# clamp_pose -> 0.40 rad). Quintic/cubic spline overshoot plus the dynamic
+# fling of the wrist under the shaker mass must never reach a hard limit:
+# DART latches a joint driven onto its limit (see the jaw limit_margin
+# comment in physical.yaml). The APPROACH slide additionally passes through
+# the joint-space midpoint (shaker_demo.py) so no spline segment carries
+# the full ~1 rad shoulder/elbow swing at once.
+
+odom_driver:
+  ros__parameters:
+    use_sim_time: true
+    # orchard_config_path / physical_config_path are injected by the launch file.
+    control_rate_hz: 20.0
+    position_tolerance_m: 0.02
+    drive_timeout_s: 45.0
+    odom_timeout_s: 3.0
+    kp_linear: 0.6
+    kp_lateral: 1.0
+    kp_yaw: 1.2
+
+shaker_demo:
+  ros__parameters:
+    use_sim_time: true
+    # orchard_config_path / physical_config_path are injected by the launch file.
+    miss_contact: false   # true = deliberate miss pose: clamp never verifies,
+                          # no shake, no detach, clean failure
+
+    stow_pose: [-1.0552, 1.6000, -1.5053, -1.8339, -0.5084, -0.2774]
+    pre_position_pose: [-1.1661, 1.6000, -1.3836, -1.8198, -0.4042, -0.1775]
+    approach_pose: [-1.0197, 1.5015, -1.3403, -1.6354, -0.5452, 0.2052]
+    clamp_pose: [-1.2299, 0.7339, -0.2029, -1.9500, -0.3366, 0.1443]
+    miss_clamp_pose: [-1.0843, 0.6181, 0.0000, -1.9393, -0.4762, 0.0875]
+
+    stow_duration_s: 6.0
+    pre_position_duration_s: 6.0
+    approach_duration_s: 5.0
+    # Split into two segments via the slide midpoint in shaker_demo.py, so
+    # the slide runs 2 x 3.0 s; slower than the original 4.0 s single
+    # segment to shrink the dynamic fling of the wrist joints carrying the
+    # shaker mass (simulation tuning value).
+    clamp_slide_duration_s: 6.0
+    retract_duration_s: 6.0
+
+    controller_wait_timeout_s: 90.0
+    action_timeout_s: 40.0
+    drive_status_timeout_s: 60.0
+    stop_settle_s: 2.0
+
+    stationary_linear_threshold: 0.02   # m/s, base-stationary rotor interlock
+    stationary_angular_threshold: 0.03  # rad/s
+
+    clamp_interference_m: 0.004   # goal = branch_radius + pad_face_offset - this
+    goal_tolerance_rad: 0.05      # abort the arm action if tracking diverges
+                                  # (wedged joint) instead of drifting on
+    clamp_action_timeout_s: 25.0
+    clamp_verify_timeout_s: 8.0
+
+    # Frequency sweep: physical.yaml tools.shaker.rotors owns the 10-25 Hz
+    # range and the shake duration; these are the sweep resolution/timing.
+    sweep_step_hz: 3.0
+    sweep_step_duration_s: 0.9
+
+    detach_ack_timeout_s: 10.0
+    mission_timeout_s: 420.0

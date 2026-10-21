@@ -2,7 +2,7 @@
 # Run the Robotar orchard simulation (no mission nodes).
 #   ROBOTAR_GUI=1            Gazebo GUI (default headless)
 #   ROBOTAR_GPU_RENDER=1     NVIDIA PRIME render offload
-#   ROBOTAR_TOOL=comb|gripper (default comb)
+#   ROBOTAR_TOOL=comb|gripper|shaker (default comb)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"

@@ -9,6 +9,9 @@
     gripper (commanded): position command, position+velocity state
     gripper (mimic)   : state only; GazeboSimSystem follows the URDF
                         <mimic> element for gripper_right_joint
+    shaker rotors     : velocity command, position+velocity state
+    shaker clamp jaw  : position command, position+velocity state
+    shaker mimic jaw  : state only (mimic of the commanded jaw)
 
   The gz_ros2_control Gazebo plugin block is emitted only when a
   controllers_file path is supplied, so the description stays usable for
@@ -74,12 +77,37 @@
           <state_interface name="velocity"/>
         </joint>
       </xacro:if>
+
+      <xacro:if value="${tool == 'shaker'}">
+        <joint name="${SHAKER['clamp']['commanded_joint']}">
+          <command_interface name="position"/>
+          <state_interface name="position"/>
+          <state_interface name="velocity"/>
+        </joint>
+        <joint name="${SHAKER['clamp']['mimic_joint']}">
+          <state_interface name="position"/>
+          <state_interface name="velocity"/>
+        </joint>
+        <joint name="${SHAKER['rotors']['joints'][0]}">
+          <command_interface name="velocity"/>
+          <state_interface name="position"/>
+          <state_interface name="velocity"/>
+        </joint>
+        <joint name="${SHAKER['rotors']['joints'][1]}">
+          <command_interface name="velocity"/>
+          <state_interface name="position"/>
+          <state_interface name="velocity"/>
+        </joint>
+      </xacro:if>
     </ros2_control>
 
     <xacro:if value="${controllers_file != ''}">
       <gazebo>
         <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
           <parameters>${controllers_file}</parameters>
+          <!-- Position-servo P gain from the physical.yaml SSOT (see the
+               control.position_proportional_gain comment there). -->
+          <position_proportional_gain>${CONTROL['position_proportional_gain']}</position_proportional_gain>
         </plugin>
       </gazebo>
     </xacro:if>

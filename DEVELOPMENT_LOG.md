@@ -344,6 +344,25 @@ Evidence/log path:
 
 **Result:** missing papers can be requested through a university/library or from authors without using unofficial mirrors.
 
+### 2026-10-20/21 — Branch clamp-shaker tool implemented (validation in progress)
+
+**Goal:** replace the placeholder rotating comb with a professional enclosed branch clamp-shaker behind the `tool0` flange, per the approved plan (padded parallel jaws clamp the branch; counter-rotating eccentric rotors inside a housing provide the excitation, f = rotor_speed/2pi, sweep 10-25 Hz, shake 3-5 s — simulation tuning values anchored in the Messina 2025 review and Camposeo 2023, not hardware ratings).
+
+**Work performed:**
+
+- Added `tools.shaker` to the SSOT `physical.yaml` (housing, clamp jaws/pads, eccentric rotors, clamp IMU, topics/controllers), new `urdf/tools/shaker.xacro`, `tool:=shaker` wiring in `robotar.urdf.xacro`, `inc/ros2_control.xacro`, `scripts/robotar_common.sh` and `scripts/robotar_run_shaker.sh`. The comb remains as the legacy demo.
+- Added `shaker_clamp_controller` (GripperActionController, max_effort as the force-limit proxy after Ji et al.) and `shaker_rotor_controller` (JointGroupVelocityController) to `controllers.yaml` and the spawner wiring.
+- `generate_orchard.py`: the target branch is now a dynamic body on a revolute SDF spring/damper joint (stiffness/damping tuned so the 0.9 m ~2 kg branch resonates inside the 10-25 Hz sweep envelope); jaw pad contact sensors publish `/shaker/clamp_contact`.
+- New mission `robotar_mission/shaker_demo.py` implementing the full state machine WAIT_FOR_CONTROLLERS -> STOW -> DRIVE_TO_TREE -> STOP -> PRE_POSITION -> APPROACH -> CLAMP -> VERIFY_CLAMP -> FREQUENCY_SWEEP -> CONTROLLED_SHAKE -> DETACH -> RELEASE -> RETRACT -> DONE, with base-stationary interlocks, clamp verification gating olive release, and a `miss_contact` negative mode. Arm poses were solved numerically (FK + swept-path collision checks).
+
+**Debugging so far:**
+
+- A misleading mid-run pass turned out to be contamination from an orphaned second `gz sim` instance (two Gazebo servers shared GZ transport topics and both hosted gz_ros2_control controller managers: spawners failed with "Controller already loaded / Failed to configure"). All runs must kill leftover sims first.
+- Clean runs then failed deterministically in APPROACH: `goal_time_tolerance exceeded`, error_code -5. Live joint-state sampling showed `arm_wrist_pitch_joint` slamming to the URDF lower limit -2.10 (clamp pose was only 0.04 rad from it; quintic spline overshoot latched the joint on DART's limit constraint) and `arm_tool_pitch_joint` being knocked off track during the fast shoulder/elbow swing and not recovering.
+- Fix in progress: wrist_pitch URDF range widened to +/-2.35 with effort 70 -> 120 Nm (tuning values), all mission poses re-solved with >= 0.15 rad joint-limit margins, and the APPROACH slide now passes through a joint-space midpoint so no spline segment carries the full ~1 rad shoulder/elbow swing at once.
+
+**Status:** build clean (3 packages). Positive end-to-end run has not yet passed APPROACH after the fix; the negative miss-contact run and full DONE verification are pending. Do not treat the shaker mission as validated yet.
+
 ## Current next action
 
-Continue the branch clamp-shaker investigation using `analysis-papers/README.md`, then freeze the first mechanical/control requirements before implementing the new `shaker` end-effector in simulation.
+Re-run the shaker demo after the limit-margin/midpoint fix: positive run must reach DONE (clamp verified on `/shaker/clamp_contact`, 10-25 Hz sweep, 4 s shake, 6 olives detach, release, retract) and `ROBOTAR_MISS_CONTACT=1` must fail cleanly with zero detach commands. If tool-pitch tracking still lags, investigate explicit position PID gains for gz_ros2_control arm joints.

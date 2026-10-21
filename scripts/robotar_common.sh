@@ -4,7 +4,7 @@
 # Environment contract:
 #   ROBOTAR_GUI=0|1          Gazebo GUI (default 0/headless)
 #   ROBOTAR_GPU_RENDER=0|1   NVIDIA PRIME render offload (default 0)
-#   ROBOTAR_TOOL=comb|gripper  tool mounted by the description (default comb)
+#   ROBOTAR_TOOL=comb|gripper|shaker  tool mounted by the description (default comb)
 #   ROBOTAR_MISS_CONTACT=0|1 harvest no-contact verification (default 0)
 #   ROBOTAR_BUILD_WORKERS=N  colcon parallel workers (default: nproc)
 #
@@ -76,9 +76,9 @@ robotar_miss_contact_value() {
 
 robotar_tool_value() {
     case "${ROBOTAR_TOOL:-comb}" in
-        comb|gripper) printf '%s\n' "${ROBOTAR_TOOL:-comb}" ;;
+        comb|gripper|shaker) printf '%s\n' "${ROBOTAR_TOOL:-comb}" ;;
         *)
-            printf 'ROBOTAR_TOOL must be comb or gripper, not %s\n' "${ROBOTAR_TOOL}" >&2
+            printf 'ROBOTAR_TOOL must be comb, gripper or shaker, not %s\n' "${ROBOTAR_TOOL}" >&2
             return 1
             ;;
     esac

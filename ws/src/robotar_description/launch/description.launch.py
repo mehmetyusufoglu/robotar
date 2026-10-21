@@ -38,7 +38,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "tool",
             default_value="comb",
-            choices=["comb", "gripper"],
+            choices=["comb", "gripper", "shaker"],
             description="Tool mounted on the tool0 flange (launch-time interchangeability).",
         ),
         DeclareLaunchArgument(

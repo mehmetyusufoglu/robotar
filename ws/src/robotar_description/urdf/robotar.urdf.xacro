@@ -8,8 +8,9 @@
   together; it contains no duplicated physical constants.
 
   Arguments:
-    tool             : 'comb' (default) or 'gripper' — launch-time tool
-                       interchangeability behind the common tool0 flange.
+    tool             : 'comb' (default), 'gripper' or 'shaker' — launch-time
+                       tool interchangeability behind the common tool0
+                       flange.
     physical_params  : path to the SSOT YAML (default: the package copy,
                        resolved relative to this file).
     controllers_file : ros2_control parameter YAML consumed by the
@@ -29,8 +30,8 @@
   <!-- Fail fast with a KeyError naming the bad value on an unsupported
        tool selection (xacro properties are lazy; an element attribute is
        evaluated eagerly when this conditional body is emitted). -->
-  <xacro:unless value="${'$(arg tool)' == 'comb' or '$(arg tool)' == 'gripper'}">
-    <link name="unsupported_tool_${{'comb': 'comb', 'gripper': 'gripper'}['$(arg tool)']}"/>
+  <xacro:unless value="${'$(arg tool)' == 'comb' or '$(arg tool)' == 'gripper' or '$(arg tool)' == 'shaker'}">
+    <link name="unsupported_tool_${{'comb': 'comb', 'gripper': 'gripper', 'shaker': 'shaker'}['$(arg tool)']}"/>
   </xacro:unless>
 
   <!-- SSOT handles; every subsystem macro reads through these. -->
@@ -45,7 +46,9 @@
   <xacro:property name="ARM_LINKS" value="${R['arm']['link_lengths']}"/>
   <xacro:property name="COMB" value="${R['tools']['comb']}"/>
   <xacro:property name="GRIPPER" value="${R['tools']['gripper']}"/>
+  <xacro:property name="SHAKER" value="${R['tools']['shaker']}"/>
   <xacro:property name="SENSORS" value="${R['sensors']}"/>
+  <xacro:property name="CONTROL" value="${ROBOTAR_CFG['control']}"/>
   <xacro:property name="TOPICS" value="${ROBOTAR_CFG['topics']}"/>
 
   <!-- Global color palette; subsystem files reference these by name. -->
@@ -63,6 +66,10 @@
   <material name="tine_steel"><color rgba="0.55 0.55 0.58 1.0"/></material>
   <material name="rotor_dark"><color rgba="0.15 0.15 0.16 1.0"/></material>
   <material name="comb_guard"><color rgba="0.72 0.55 0.10 1.0"/></material>
+  <!-- Shaker: translucent teal enclosure so the counter-rotating eccentric
+       discs (bright yellow) stay readable inside the housing. -->
+  <material name="shaker_housing"><color rgba="0.10 0.45 0.50 0.40"/></material>
+  <material name="shaker_rotor"><color rgba="0.85 0.65 0.10 1.0"/></material>
 
   <!-- Relative include paths resolve against this file's directory. -->
   <xacro:include filename="inc/base.xacro"/>
@@ -71,6 +78,7 @@
   <xacro:include filename="inc/ros2_control.xacro"/>
   <xacro:include filename="tools/comb.xacro"/>
   <xacro:include filename="tools/gripper.xacro"/>
+  <xacro:include filename="tools/shaker.xacro"/>
 
   <!-- Root of the TF tree: ground projection of the chassis center. -->
   <link name="base_footprint"/>
@@ -89,6 +97,9 @@
   </xacro:if>
   <xacro:if value="${'$(arg tool)' == 'gripper'}">
     <xacro:robotar_gripper_tool/>
+  </xacro:if>
+  <xacro:if value="${'$(arg tool)' == 'shaker'}">
+    <xacro:robotar_shaker_tool/>
   </xacro:if>
 
   <xacro:robotar_ros2_control tool="$(arg tool)" controllers_file="$(arg controllers_file)"/>

@@ -6,11 +6,12 @@ Bringup order:
 2. Optionally ``robotar_description``'s ``description.launch.py`` so that
    ``robot_state_publisher`` publishes ``robot_description``.
 3. Spawn the robot into the world from the ``robot_description`` topic.
-4. The generated ros_gz bridge configuration (clock, RGB-D, IMU, comb
-   contacts, per-olive detach/state topics).
+4. The generated ros_gz bridge configuration (clock, RGB-D, IMU, tool
+   contact/IMU topics, per-olive detach/state topics).
 5. ros2_control controller spawners. The spawners wait for the Gazebo
    ``controller_manager`` service themselves, so no fixed startup timers
-   are needed. ``gripper_controller`` / ``comb_controller`` are spawned
+   are needed. The tool controllers (``comb_controller``,
+   ``gripper_controller`` or the shaker clamp/rotor pair) are spawned
    according to the ``tool`` argument.
 
 Wheel geometry is not duplicated anywhere: this launch file reads
@@ -163,7 +164,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "tool",
             default_value="comb",
-            description="End effector mounted by robotar_description: comb or gripper.",
+            description="End effector mounted by robotar_description: comb, gripper or shaker.",
         ),
         DeclareLaunchArgument("use_sim_time", default_value="true"),
         DeclareLaunchArgument("spawn_x", default_value=str(spawn_xyz[0])),
@@ -310,6 +311,8 @@ def generate_launch_description():
             spawner("arm_controller"),
             spawner("comb_controller", tool_condition="comb"),
             spawner("gripper_controller", tool_condition="gripper"),
+            spawner("shaker_clamp_controller", tool_condition="shaker"),
+            spawner("shaker_rotor_controller", tool_condition="shaker"),
         ]
     )
     return LaunchDescription(entities)

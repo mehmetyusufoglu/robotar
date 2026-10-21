@@ -1,0 +1,204 @@
+<?xml version="1.0"?>
+<!--
+  shaker tool: enclosed branch clamp-shaker on the tool0 flange.
+
+  Mechanism (Messina et al. 2025 multidirectional-shaker family): two
+  counter-rotating eccentric discs spin inside an enclosed housing while
+  padded parallel jaws clamp the branch. Only the jaw pads touch the
+  branch; the unbalanced rotors (centre of mass offset from the joint
+  axis by SHAKER['rotors']['eccentricity']) excite the clamped branch.
+
+  All geometry, joint names, masses and the operational envelope come from
+  physical.yaml (SHAKER / SENSORS); this file holds no physical constants.
+
+  Frame/layout in tool0 coordinates (tool extends along +z):
+    housing      : box from z=0 to z=housing_size[2]
+    rotors       : continuous joints, axes along +x, inside the housing;
+                   mirrored eccentricity so opposite-sign velocity commands
+                   (counter-rotation) cancel the lateral force component
+    jaws         : prismatic joints along y at the housing top face;
+                   shaker_left_jaw_joint is commanded (0 = closed, opening
+                   toward +y), shaker_right_jaw_joint mimics it with
+                   multiplier -1 (same pattern as gripper.xacro). Pad inner
+                   faces sit at +/-(position - pad_face_offset).
+    imu          : housing-mounted shaker_imu_link publishing the SSOT
+                   /shaker/imu topic (branch vibration response)
+    pad contacts : one Gazebo contact sensor per pad collision, both
+                   publishing the SSOT /shaker/clamp_contact topic
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- One eccentric rotor disc: unbalanced inertia plus a bright lug that
+       makes the eccentric side (and its rotation) readable in Gazebo.
+       e_sign mirrors the eccentricity for the counter-rotating pair. -->
+  <xacro:macro name="shaker_rotor" params="side joint px e_sign">
+    <xacro:property name="ROT" value="${SHAKER['rotors']}"/>
+    <joint name="${joint}" type="continuous">
+      <parent link="shaker_housing_link"/>
+      <child link="shaker_${side}_rotor_link"/>
+      <origin xyz="${px} 0 ${SHAKER['housing_size'][2]/2.0}" rpy="0 0 0"/>
+      <axis xyz="1 0 0"/>
+      <limit effort="10.0" velocity="${2.0*math.pi*ROT['max_frequency_hz']}"/>
+    </joint>
+    <link name="shaker_${side}_rotor_link">
+      <!-- CoM offset from the spin axis: the imbalance IS the shaker. -->
+      <xacro:inertial_cylinder_x mass="${ROT['mass_each']}" radius="${ROT['radius']}"
+                                 length="${ROT['thickness']}" oz="${e_sign*ROT['eccentricity']}"/>
+      <visual name="disc">
+        <origin xyz="0 0 0" rpy="0 ${math.pi/2} 0"/>
+        <geometry><cylinder radius="${ROT['radius']}" length="${ROT['thickness']}"/></geometry>
+        <material name="shaker_rotor"/>
+      </visual>
+      <visual name="eccentric_lug">
+        <origin xyz="0 0 ${e_sign*(ROT['radius'] - 0.012)}" rpy="0 0 0"/>
+        <geometry><box size="${ROT['thickness'] + 0.01} 0.03 0.03"/></geometry>
+        <material name="arm_orange"/>
+      </visual>
+      <!-- Enclosed rotor: intentionally no collision (housing shields it). -->
+    </link>
+  </xacro:macro>
+
+  <!-- One clamp jaw: plate extending along +z from the housing top face,
+       with a compliant pad (lug_rubber) on the inner face. pad_sign points
+       the pad toward the tool centerline. -->
+  <xacro:macro name="shaker_jaw" params="link pad_collision pad_sign">
+    <xacro:property name="CL" value="${SHAKER['clamp']}"/>
+    <link name="${link}">
+      <xacro:inertial_box mass="0.3" sx="${CL['pad_size'][0]}" sy="${CL['jaw_thickness']}"
+                          sz="${CL['jaw_length']}" oz="${CL['jaw_length']/2.0}"/>
+      <visual name="jaw_plate">
+        <origin xyz="0 0 ${CL['jaw_length']/2.0}" rpy="0 0 0"/>
+        <geometry><box size="${CL['pad_size'][0]} ${CL['jaw_thickness']} ${CL['jaw_length']}"/></geometry>
+        <material name="hub_steel"/>
+      </visual>
+      <visual name="jaw_pad">
+        <origin xyz="0 ${pad_sign*(-(CL['jaw_thickness']/2.0 + CL['pad_thickness']/2.0))}
+                     ${CL['jaw_length'] - CL['pad_size'][2]/2.0}" rpy="0 0 0"/>
+        <geometry><box size="${CL['pad_size'][0]} ${CL['pad_thickness']} ${CL['pad_size'][2]}"/></geometry>
+        <material name="lug_rubber"/>
+      </visual>
+      <collision name="${link}_collision">
+        <origin xyz="0 0 ${CL['jaw_length']/2.0}" rpy="0 0 0"/>
+        <geometry><box size="${CL['pad_size'][0]} ${CL['jaw_thickness']} ${CL['jaw_length']}"/></geometry>
+      </collision>
+      <collision name="${pad_collision}">
+        <origin xyz="0 ${pad_sign*(-(CL['jaw_thickness']/2.0 + CL['pad_thickness']/2.0))}
+                     ${CL['jaw_length'] - CL['pad_size'][2]/2.0}" rpy="0 0 0"/>
+        <geometry><box size="${CL['pad_size'][0]} ${CL['pad_thickness']} ${CL['pad_size'][2]}"/></geometry>
+      </collision>
+    </link>
+    <gazebo reference="${link}">
+      <sensor name="${link}_pad_contact_sensor" type="contact">
+        <always_on>true</always_on>
+        <update_rate>${SENSORS['shaker_clamp_contact']['update_rate']}</update_rate>
+        <!-- gz-sim Harmonic reads the topic from inside <contact>; a
+             sensor-level <topic> is ignored there (same as comb.xacro). -->
+        <contact>
+          <collision>${pad_collision}</collision>
+          <topic>${SENSORS['shaker_clamp_contact']['topic']}</topic>
+        </contact>
+      </sensor>
+    </gazebo>
+  </xacro:macro>
+
+  <xacro:macro name="robotar_shaker_tool">
+    <xacro:property name="HS" value="${SHAKER['housing_size']}"/>
+    <joint name="shaker_mount_joint" type="fixed">
+      <parent link="tool0"/>
+      <child link="shaker_housing_link"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+    <link name="shaker_housing_link">
+      <!-- Rotors carry 2 x mass_each, jaws 2 x 0.3 kg, IMU pod 0.05 kg; the
+           housing holds the remainder of the SSOT tool mass. -->
+      <xacro:inertial_box mass="${SHAKER['mass'] - 2.0*SHAKER['rotors']['mass_each'] - 0.65}"
+                          sx="${HS[0]}" sy="${HS[1]}" sz="${HS[2]}" oz="${HS[2]/2.0}"/>
+      <visual name="flange_adapter">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><cylinder radius="${R['flange']['bolt_circle_diameter']/2.0 + 0.005}" length="0.04"/></geometry>
+        <material name="hub_steel"/>
+      </visual>
+      <!-- Semi-transparent enclosure: the counter-rotating eccentric discs
+           stay readable through the shell (visual only; collision is the
+           solid box below). -->
+      <visual name="housing_shell">
+        <origin xyz="0 0 ${HS[2]/2.0}" rpy="0 0 0"/>
+        <geometry><box size="${HS[0]} ${HS[1]} ${HS[2]}"/></geometry>
+        <material name="shaker_housing"/>
+      </visual>
+      <visual name="left_motor_cap">
+        <origin xyz="${HS[0]/2.0 - 0.02} 0 ${HS[2]/2.0}" rpy="0 ${math.pi/2} 0"/>
+        <geometry><cylinder radius="${SHAKER['rotors']['radius'] + 0.015}" length="0.04"/></geometry>
+        <material name="rotor_dark"/>
+      </visual>
+      <visual name="right_motor_cap">
+        <origin xyz="${-(HS[0]/2.0 - 0.02)} 0 ${HS[2]/2.0}" rpy="0 ${math.pi/2} 0"/>
+        <geometry><cylinder radius="${SHAKER['rotors']['radius'] + 0.015}" length="0.04"/></geometry>
+        <material name="rotor_dark"/>
+      </visual>
+      <visual name="jaw_rail">
+        <origin xyz="0 0 ${HS[2] + 0.01}" rpy="0 0 0"/>
+        <geometry><box size="${SHAKER['clamp']['pad_size'][0] + 0.03} 0.12 0.02"/></geometry>
+        <material name="arm_dark"/>
+      </visual>
+      <collision name="shaker_housing_collision">
+        <origin xyz="0 0 ${HS[2]/2.0}" rpy="0 0 0"/>
+        <geometry><box size="${HS[0]} ${HS[1]} ${HS[2]}"/></geometry>
+      </collision>
+    </link>
+
+    <xacro:shaker_rotor side="left" joint="${SHAKER['rotors']['joints'][0]}"
+                        px="${SHAKER['rotors']['spacing']/2.0}" e_sign="${1.0}"/>
+    <xacro:shaker_rotor side="right" joint="${SHAKER['rotors']['joints'][1]}"
+                        px="${-SHAKER['rotors']['spacing']/2.0}" e_sign="${-1.0}"/>
+
+    <joint name="${SHAKER['clamp']['commanded_joint']}" type="prismatic">
+      <parent link="shaker_housing_link"/>
+      <child link="shaker_left_jaw_link"/>
+      <origin xyz="0 0 ${HS[2]}" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <!-- limit_margin below zero: rest position 0 must not sit exactly on
+           the hard limit (DART limit latch, see physical.yaml comment). -->
+      <limit lower="${-SHAKER['clamp']['limit_margin']}" upper="${SHAKER['clamp']['max_opening']/2.0}"
+             effort="${SHAKER['clamp']['max_effort']}" velocity="0.15"/>
+    </joint>
+    <xacro:shaker_jaw link="shaker_left_jaw_link"
+                      pad_collision="${SHAKER['clamp']['pad_collisions'][0]}" pad_sign="${1.0}"/>
+
+    <joint name="${SHAKER['clamp']['mimic_joint']}" type="prismatic">
+      <parent link="shaker_housing_link"/>
+      <child link="shaker_right_jaw_link"/>
+      <origin xyz="0 0 ${HS[2]}" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <limit lower="${-SHAKER['clamp']['max_opening']/2.0}" upper="${SHAKER['clamp']['limit_margin']}"
+             effort="${SHAKER['clamp']['max_effort']}" velocity="0.15"/>
+      <mimic joint="${SHAKER['clamp']['commanded_joint']}" multiplier="-1" offset="0.0"/>
+    </joint>
+    <xacro:shaker_jaw link="shaker_right_jaw_link"
+                      pad_collision="${SHAKER['clamp']['pad_collisions'][1]}" pad_sign="${-1.0}"/>
+
+    <!-- Housing-mounted IMU measuring the clamped branch vibration response
+         (adaptive resonance tracking is a documented later phase). -->
+    <joint name="shaker_imu_joint" type="fixed">
+      <parent link="shaker_housing_link"/>
+      <child link="${SHAKER['imu']['link']}"/>
+      <origin xyz="0 ${HS[1]/2.0} ${HS[2]*0.6}" rpy="0 0 0"/>
+    </joint>
+    <link name="${SHAKER['imu']['link']}">
+      <xacro:inertial_box mass="0.05" sx="0.04" sy="0.02" sz="0.04"/>
+      <visual name="imu_pod">
+        <origin xyz="0 0.01 0" rpy="0 0 0"/>
+        <geometry><box size="0.04 0.02 0.04"/></geometry>
+        <material name="sensor_black"/>
+      </visual>
+    </link>
+    <gazebo reference="${SHAKER['imu']['link']}">
+      <sensor name="shaker_housing_imu" type="imu">
+        <always_on>true</always_on>
+        <update_rate>${SENSORS['shaker_imu']['update_rate']}</update_rate>
+        <topic>${SENSORS['shaker_imu']['topic']}</topic>
+      </sensor>
+    </gazebo>
+  </xacro:macro>
+
+</robot>

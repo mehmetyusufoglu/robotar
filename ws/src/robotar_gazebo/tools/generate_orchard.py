@@ -42,7 +42,15 @@ STATIC_BRIDGES = [
     ("/camera/mast/depth/camera_info", "sensor_msgs/msg/CameraInfo", "gz.msgs.CameraInfo", "GZ_TO_ROS"),
     ("/imu/data", "sensor_msgs/msg/Imu", "gz.msgs.IMU", "GZ_TO_ROS"),
     ("/comb/contact", "ros_gz_interfaces/msg/Contacts", "gz.msgs.Contacts", "GZ_TO_ROS"),
+    ("/shaker/imu", "sensor_msgs/msg/Imu", "gz.msgs.IMU", "GZ_TO_ROS"),
+    ("/shaker/clamp_contact", "ros_gz_interfaces/msg/Contacts", "gz.msgs.Contacts", "GZ_TO_ROS"),
 ]
+
+# Interface-contract topics cross-referenced with physical.yaml
+# (robotar.sensors.*.topic). Kept as constants because this generator only
+# reads orchard.yaml.
+COMB_CONTACT_TOPIC = "/comb/contact"
+SHAKER_CLAMP_CONTACT_TOPIC = "/shaker/clamp_contact"
 
 WORLD_PLUGINS = [
     ("gz-sim-physics-system", "gz::sim::systems::Physics", {}),
@@ -228,9 +236,11 @@ def _add_collision(link, name, pose, kind, **dims):
     return collision
 
 
-def _add_inertial(link, mass, ixx, iyy, izz):
+def _add_inertial(link, mass, ixx, iyy, izz, pose=None):
     inertial = _sub(link, "inertial")
     _sub(inertial, "mass", _n(mass))
+    if pose is not None:
+        _sub(inertial, "pose", pose)
     inertia = _sub(inertial, "inertia")
     for tag, value in (("ixx", ixx), ("iyy", iyy), ("izz", izz)):
         _sub(inertia, tag, _n(value))
@@ -393,9 +403,17 @@ def _build_tree(world, orchard, index, x, y, rng):
     tree_cfg = orchard["tree"]
     target = orchard["target_tree"]
     is_target = target["name"] == f"olive_tree_{index}"
+    branch_cfg = target["harvest_branch"] if is_target else None
+    spring_cfg = (branch_cfg or {}).get("spring")
+    # With a spring block configured, the target branch hangs on a revolute
+    # spring/damper joint (SDF joint dynamics, honored by Gazebo Harmonic's
+    # DART backend) so clamped shaking visibly oscillates the branch. The
+    # target tree model then becomes dynamic, anchored by a fixed joint to
+    # the world; without the block the historical rigid static tree is kept.
+    compliant = is_target and spring_cfg is not None
 
     model = _sub(world, "model", name=f"olive_tree_{index}")
-    _sub(model, "static", "true")
+    _sub(model, "static", "false" if compliant else "true")
     _sub(model, "pose", _pose_text((x, y, 0.0)))
 
     trunk_radius = tree_cfg["trunk_diameter"] / 2.0
@@ -403,6 +421,10 @@ def _build_tree(world, orchard, index, x, y, rng):
     span = tree_cfg["height"] - bottom
 
     trunk_link = _sub(model, "link", name="trunk_link")
+    if compliant:
+        # Coarse trunk inertia (tuning value); the trunk is rigidly anchored
+        # to the world below, so this only keeps DART happy.
+        _add_inertial(trunk_link, 60.0, 30.0, 30.0, 5.0)
     trunk_visual_length = bottom + 1.0
     _add_visual(
         trunk_link,
@@ -450,8 +472,7 @@ def _build_tree(world, orchard, index, x, y, rng):
     if not is_target:
         return
 
-    branch_cfg = target["harvest_branch"]
-    _, midpoint, yaw = branch_geometry(target["xyz"], branch_cfg)
+    base, midpoint, yaw = branch_geometry(target["xyz"], branch_cfg)
     relative_mid = tuple(m - t for m, t in zip(midpoint, target["xyz"]))
 
     branch_link = _sub(model, "link", name=branch_cfg["name"])
@@ -477,9 +498,47 @@ def _build_tree(world, orchard, index, x, y, rng):
         size=(branch_cfg["length"], 2.0 * branch_cfg["radius"], 2.0 * branch_cfg["radius"]),
     )
 
-    joint = _sub(model, "joint", name=f"{branch_cfg['name']}_fixed", type="fixed")
-    _sub(joint, "parent", "trunk_link")
-    _sub(joint, "child", branch_cfg["name"])
+    if compliant:
+        # Compliant branch: rod inertia about the branch midpoint (branch
+        # runs along the local y axis in the orchard configuration), then a
+        # revolute joint at the branch base whose axis is horizontal and
+        # perpendicular to the branch, so the spring/damper lets the branch
+        # oscillate vertically under the clamp-shaker excitation.
+        length = float(branch_cfg["length"])
+        radius = float(branch_cfg["radius"])
+        mass = float(branch_cfg.get("mass", 2.0))
+        _add_inertial(
+            branch_link,
+            mass,
+            mass * length * length / 12.0,
+            mass * radius * radius / 2.0,
+            mass * length * length / 12.0,
+            pose=_pose_text(relative_mid),
+        )
+        relative_base = tuple(b - t for b, t in zip(base, target["xyz"]))
+        joint = _sub(model, "joint", name=f"{branch_cfg['name']}_spring", type="revolute")
+        _sub(joint, "parent", "trunk_link")
+        _sub(joint, "child", branch_cfg["name"])
+        _sub(joint, "pose", _pose_text(relative_base))
+        axis = _sub(joint, "axis")
+        _sub(axis, "xyz", "1 0 0")
+        limit = _sub(axis, "limit")
+        _sub(limit, "lower", "-0.35")
+        _sub(limit, "upper", "0.35")
+        _sub(limit, "effort", "10000")
+        _sub(limit, "velocity", "20")
+        dynamics = _sub(axis, "dynamics")
+        _sub(dynamics, "spring_reference", float(spring_cfg["reference"]))
+        _sub(dynamics, "spring_stiffness", float(spring_cfg["stiffness"]))
+        _sub(dynamics, "damping", float(spring_cfg["damping"]))
+
+        anchor = _sub(model, "joint", name="trunk_world_fixed", type="fixed")
+        _sub(anchor, "parent", "world")
+        _sub(anchor, "child", "trunk_link")
+    else:
+        joint = _sub(model, "joint", name=f"{branch_cfg['name']}_fixed", type="fixed")
+        _sub(joint, "parent", "trunk_link")
+        _sub(joint, "child", branch_cfg["name"])
 
     # Contact sensor on the instrumented branch. The tool-side sensors on the
     # comb banks (robotar_description) monitor the same contact pair, but for
@@ -493,7 +552,19 @@ def _build_tree(world, orchard, index, x, y, rng):
     _sub(sensor, "update_rate", "50")
     contact = _sub(sensor, "contact")
     _sub(contact, "collision", branch_cfg["collision"])
-    _sub(contact, "topic", "/comb/contact")
+    _sub(contact, "topic", COMB_CONTACT_TOPIC)
+
+    # Same contact pair reported on the shaker clamp topic (contract topic
+    # physical.yaml:sensors.shaker_clamp_contact.topic): the shaker jaw pads
+    # carry their own contact sensors, and the branch side adds redundancy
+    # for the clamp-verification gate (box-vs-box contact, reported
+    # reliably on both sides).
+    sensor = _sub(branch_link, "sensor", name="target_branch_clamp_sensor", type="contact")
+    _sub(sensor, "always_on", "true")
+    _sub(sensor, "update_rate", "50")
+    contact = _sub(sensor, "contact")
+    _sub(contact, "collision", branch_cfg["collision"])
+    _sub(contact, "topic", SHAKER_CLAMP_CONTACT_TOPIC)
 
     olives_cfg = target["olives"]
     detach_pattern = orchard["topics"]["detach_pattern"]
