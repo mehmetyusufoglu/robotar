@@ -11,31 +11,33 @@
 #
 # Arm poses are six values in physical.yaml robotar.arm.joints order:
 #   [arm_yaw, shoulder_pitch, elbow_pitch, wrist_pitch, wrist_roll, tool_pitch]
-# They were solved numerically (forward kinematics from physical.yaml, then
-# swept-path collision checks against the orchard/chassis/wheel/olive
-# volumes, robot at the worst-case drive stop x=2.98) so that after driving
-# to drive_to_x the open jaws slide over the branch tip (approach_pose ->
-# clamp_pose) and the pad clamp center lands on target_branch at
-# (3.5, y=-2.70, z=1.44) with the pads closing across the branch axis and
-# approach_pose sharing the exact clamp orientation (pure-translation
-# slide, no tool pitch sweep across the olives).
-# All poses share one joint family (wrist_pitch ~ -1.9) so every
-# interpolated transition stays collision-free. stow_pose is a dedicated
-# shaker carry posture (NOT the comb stow — interpolating from the comb
-# stow dives the wrist into the chassis/wheel). miss_clamp_pose offsets the
-# clamp point 0.18 m in +x so the jaws close on air for the no-contact
-# negative verification.
+# Solved numerically (forward kinematics from physical.yaml, then swept-path
+# clearance checks against the branch cylinder AND the six olives, robot at
+# the worst-case drive stop x=2.98) so that after driving to drive_to_x the
+# open jaws slide over the branch tip (approach_pose -> clamp_pose) and the
+# pad clamp center lands on target_branch at (3.5, y=-2.70, z=1.44) with the
+# pads closing across the branch axis.
 #
-# Joint-limit margin: every pose keeps each joint >= 0.15 rad from its
-# physical.yaml URDF limits (verified numerically against the widened
-# wrist_pitch range +/-2.35; the binding margins are shoulder_pitch
-# 1.60 vs 1.75 in stow/pre_position and wrist_pitch -1.95 vs -2.35 in
-# clamp_pose -> 0.40 rad). Quintic/cubic spline overshoot plus the dynamic
-# fling of the wrist under the shaker mass must never reach a hard limit:
-# DART latches a joint driven onto its limit (see the jaw limit_margin
-# comment in physical.yaml). The APPROACH slide additionally passes through
-# the joint-space midpoint (shaker_demo.py) so no spline segment carries
-# the full ~1 rad shoulder/elbow swing at once.
+# 2026-10-21 redesign (see DEVELOPMENT_LOG): the previous pose family drove
+# the tool housing INTO the olive cluster (olives are welded to the tree
+# until detach; the contact wedged the arm mid-trajectory and every APPROACH
+# aborted on goal_time_tolerance). The fix has three parts:
+#   1. jaw_length 0.12 -> 0.30 in physical.yaml: long hook jaws keep the
+#      bulky housing below the olive cluster and deepen the jaw mouth.
+#   2. Poses re-solved against the new pad height with the shoulder FREE:
+#      approach/clamp share the exact clamp orientation (pure-translation
+#      slide, mouth square to the branch — a pinned shoulder was tried and
+#      left an 11 deg mouth tilt that rubbed the branch on the pads).
+#      Every tool collision box stays >= 1 cm clear of olives/branch along
+#      the swept mission path, and every joint keeps >= 0.20 rad (wrist
+#      >= 0.30 rad) from its URDF limits (DART latches joints driven onto
+#      their limits).
+#   3. miss mode shifts the WHOLE maneuver +0.22 m in +x (miss_approach_pose
+#      and miss_clamp_pose) so the branch never enters the jaw mouth: the
+#      jaws close on air, clamp never verifies, zero detach commands.
+#
+# The approach/clamp/retract moves are staged as separate single-point
+# trajectories in shaker_demo.py so every segment starts from standstill.
 
 odom_driver:
   ros__parameters:
@@ -57,18 +59,17 @@ shaker_demo:
                           # no shake, no detach, clean failure
 
     stow_pose: [-1.0552, 1.6000, -1.5053, -1.8339, -0.5084, -0.2774]
-    pre_position_pose: [-1.1661, 1.6000, -1.3836, -1.8198, -0.4042, -0.1775]
-    approach_pose: [-1.0197, 1.5015, -1.3403, -1.6354, -0.5452, 0.2052]
-    clamp_pose: [-1.2299, 0.7339, -0.2029, -1.9500, -0.3366, 0.1443]
-    miss_clamp_pose: [-1.0843, 0.6181, 0.0000, -1.9393, -0.4762, 0.0875]
+    pre_position_pose: [-1.0762, 1.5500, -1.0803, -2.0500, -0.5132, 0.0481]
+    approach_pose: [-1.0667, 1.5216, -1.0454, -1.8465, -0.4914, 0.1243]
+    clamp_pose: [-1.2486, 0.8380, -0.0507, -2.0500, -0.3151, 0.0078]
+    miss_approach_pose: [-0.7946, 1.2016, -0.6349, -2.0006, -0.7598, 0.2021]
+    miss_clamp_pose: [-1.0716, 0.7828, 0.0000, -1.9700, -0.4815, -0.0078]
 
     stow_duration_s: 6.0
     pre_position_duration_s: 6.0
     approach_duration_s: 5.0
     # Split into two segments via the slide midpoint in shaker_demo.py, so
-    # the slide runs 2 x 3.0 s; slower than the original 4.0 s single
-    # segment to shrink the dynamic fling of the wrist joints carrying the
-    # shaker mass (simulation tuning value).
+    # the slide runs 2 x 3.0 s (simulation timing tuning value).
     clamp_slide_duration_s: 6.0
     retract_duration_s: 6.0
 

@@ -80,6 +80,7 @@ class ShakerDemo(Node):
         self.declare_parameter("pre_position_pose", [0.0] * 6)
         self.declare_parameter("approach_pose", [0.0] * 6)
         self.declare_parameter("clamp_pose", [0.0] * 6)
+        self.declare_parameter("miss_approach_pose", [0.0] * 6)
         self.declare_parameter("miss_clamp_pose", [0.0] * 6)
         self.declare_parameter("stow_duration_s", 6.0)
         self.declare_parameter("pre_position_duration_s", 6.0)
@@ -175,6 +176,7 @@ class ShakerDemo(Node):
             "pre": list(self.get_parameter("pre_position_pose").value),
             "approach": list(self.get_parameter("approach_pose").value),
             "clamp": list(self.get_parameter("clamp_pose").value),
+            "miss_approach": list(self.get_parameter("miss_approach_pose").value),
             "miss": list(self.get_parameter("miss_clamp_pose").value),
         }
         for name, pose in self.poses.items():
@@ -610,9 +612,8 @@ class ShakerDemo(Node):
                 return
             # Staged approach: open jaws first, then move to the approach
             # pose, then slide onto the branch — each as its OWN single-point
-            # trajectory. Multi-segment splines through these poses were
-            # observed to fling wrist_pitch onto its joint limit at interior
-            # waypoints, where DART's limit constraint latches the joint.
+            # trajectory, so every segment starts from standstill (no spline
+            # interior-velocity buildup across waypoints).
             self.approach_stage = 0
             self._send_clamp_goal(self.jaw_open_position)
 
@@ -630,8 +631,13 @@ class ShakerDemo(Node):
         if self.approach_stage == 0:
             if self.clamp_goal_done:
                 self.approach_stage = 1
+                # Miss mode uses its own approach pose: the whole maneuver is
+                # offset in +x so the branch never enters the jaw mouth.
+                approach_key = (
+                    "miss_approach" if self.miss_contact else "approach"
+                )
                 self._send_trajectory(
-                    [(self.poses["approach"],
+                    [(self.poses[approach_key],
                       float(self.get_parameter("approach_duration_s").value))]
                 )
         elif self.approach_stage == 1:

@@ -361,8 +361,36 @@ Evidence/log path:
 - Clean runs then failed deterministically in APPROACH: `goal_time_tolerance exceeded`, error_code -5. Live joint-state sampling showed `arm_wrist_pitch_joint` slamming to the URDF lower limit -2.10 (clamp pose was only 0.04 rad from it; quintic spline overshoot latched the joint on DART's limit constraint) and `arm_tool_pitch_joint` being knocked off track during the fast shoulder/elbow swing and not recovering.
 - Fix in progress: wrist_pitch URDF range widened to +/-2.35 with effort 70 -> 120 Nm (tuning values), all mission poses re-solved with >= 0.15 rad joint-limit margins, and the APPROACH slide now passes through a joint-space midpoint so no spline segment carries the full ~1 rad shoulder/elbow swing at once.
 
-**Status:** build clean (3 packages). Positive end-to-end run has not yet passed APPROACH after the fix; the negative miss-contact run and full DONE verification are pending. Do not treat the shaker mission as validated yet.
+**Status (updated 2026-10-21):** the wrist-limit latch was a CONSEQUENCE, not the cause — the next entry has the validated root cause (tool/olive contact wedge) and the final fix; the mission now passes end-to-end (positive DONE, negative clean). The wrist-limit widening and margins stay as defense-in-depth.
+
+### 2026-10-21 — Shaker APPROACH aborts: root cause and fix
+
+**Goal:** fix the deterministic `arm_controller` abort (`goal_time_tolerance` exceeded, error_code -5) in the shaker mission's APPROACH/slide.
+
+**Diagnosis (multiple red herrings eliminated):**
+
+- *Dual-sim contamination is real but was not the root cause.* Leftover Gazebo instances and mission nodes from parallel diagnosis sessions repeatedly poisoned validation (foreign action goals preempting mission trajectories; interleaved `/joint_states` from two sims). Also: `gz sim` sometimes ignores SIGTERM — kill with SIGKILL by PID and verify with `pgrep` before every run.
+- *Not spline overshoot:* the cubic spline through the slide waypoints never undershoots its endpoints (verified numerically); the JTC reference stayed on-goal while joints diverged.
+- *Not servo gain/effort/step size:* the stall persisted across `position_proportional_gain` 0.05/0.1/0.3, wrist/tool effort 70→400 Nm, and physics steps 4 ms → 1 ms.
+- **Root cause: the tool wedged against the olives.** The housing (jaw_length 0.12) penetrated olive_1 by ~1 cm along the slide corridor. Olives are welded to the tree via DetachableJoint until the mission detaches them, so tool/olive contact anchors against the world; DART contact constraints starve the joint servos in the coupled LCP — joints crawl at ~0.005 rad/s under full servo command, get pushed off path, and in the first runs the wrist was driven onto its joint limit where DART's limit constraint latched it. Pad/branch contact topics stayed empty because the contact was with the olives (no sensors). Proven by detaching the olives in a live wedged sim: a previously stuck joint tracked a 0.5 rad probe immediately and cleanly (error_code 0).
+
+**Fix:**
+
+- `physical.yaml`: shaker `jaw_length` 0.12 → 0.30 (long hook jaws; housing stays below the olive cluster, deeper jaw mouth). Wrist/tool effort kept at 120 Nm (the 400/250 Nm experiment reverted — irrelevant to the wedge). `position_proportional_gain` set to 0.05 with corrected rationale; note this is the ONLY position-servo gain gz_ros2_control Jazzy supports (no per-joint PID; verified in the package source).
+- `orchard.yaml`: olive_2 nudged (3.58,-2.50,1.36) → (3.62,-2.42,1.36) — the jaw plate grazed it at the miss-slide corridor start.
+- `shaker_demo.yaml`: pose family re-solved numerically for the new pad height (FK + swept-path clearance against the branch cylinder and all six olives; every tool collision box ≥ 1 cm clear along the mission path; every joint ≥ 0.20 rad, wrist ≥ 0.30 rad from URDF limits). approach/clamp share the exact clamp orientation (pure-translation slide). New `miss_approach_pose`: miss mode shifts the whole maneuver +0.22 m in +x so the branch never enters the jaw mouth.
+- `shaker_demo.py`: miss mode approaches via `miss_approach_pose`.
+
+**Verification:**
+
+- Isolated arm sequence at the tree (stow→pre→approach→clamp, jaws open): all segments track to goal (final joint error < 1e-6 rad), zero wedge stalls.
+- Positive run (`ROBOTAR_TOOL=shaker ROBOTAR_GUI=0 ./scripts/robotar_run_shaker.sh`, log `data/logs/robotar_shaker_20261021_092928.log`): drive to x=2.980; pad/branch clamp contact confirmed on `/shaker/clamp_contact` (`clamp verified stalled=True`); sweep 10→25 Hz in 3 Hz steps (housing IMU response 0.8→14.7 m/s², peak 0.61 mm at 22 Hz); 4.0 s controlled shake at 22 Hz; 6/6 olives detached on command; all six olives settled inside the catch-net region (poses checked via `gz model`); release, retract, `MISSION DONE` with final odom (2.980, ~0).
+- Negative run (`ROBOTAR_MISS_CONTACT=1`, log `robotar_shaker_20261021_094621.log`): miss approach/clamp on air, VERIFY_CLAMP timed out with no pad/branch contact, no sweep, no shake, **zero detach commands** (olives still attached afterwards), jaws released, clean `MISSION FAILED` exit 1.
+
+**Limitations discovered:** DART's JointConstraint gives the servo lowest priority after position/velocity limits, and joints driven onto a position limit can latch (the jaw `limit_margin` pattern mitigates); keep pose margins ≥ 0.2 rad. The wrist-limit widening (±2.35) stays as defense-in-depth.
+
+**Decision/next action:** shaker mission validated end-to-end. Next: branch-compliant shake physics realism (branch spring response vs frequency) and RGB-D shake-point selection.
 
 ## Current next action
 
-Re-run the shaker demo after the limit-margin/midpoint fix: positive run must reach DONE (clamp verified on `/shaker/clamp_contact`, 10-25 Hz sweep, 4 s shake, 6 olives detach, release, retract) and `ROBOTAR_MISS_CONTACT=1` must fail cleanly with zero detach commands. If tool-pitch tracking still lags, investigate explicit position PID gains for gz_ros2_control arm joints.
+Shaker demo validated end-to-end on 2026-10-21 (positive run reached DONE with clamp verified, 10-25 Hz sweep, 4 s shake, 6/6 olives detached and landed in the catch region; `ROBOTAR_MISS_CONTACT=1` failed cleanly with zero detach commands — see the 2026-10-21 entry). Next: shake-physics realism (branch spring response vs frequency, pad force limits) and RGB-D shake-point selection.

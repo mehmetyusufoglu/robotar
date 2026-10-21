@@ -79,9 +79,9 @@ robotar:
         lower: -2.35
         upper: 2.35
         # ~35 Nm static with the shaker held near horizontal; 120 Nm is a
-        # simulation tuning value with servo-tracking margin. An
-        # under-margined wrist lets the joint sag onto its position limit
-        # during the clamp slide, where DART's limit constraint latches it.
+        # simulation tuning value with servo-tracking margin. A joint driven
+        # onto its position limit can latch on DART's limit constraint, so
+        # working poses keep margin to the (widened) range below.
         effort: 120.0
         velocity: 1.0
       - name: arm_wrist_roll_joint
@@ -97,8 +97,7 @@ robotar:
         lower: -1.90
         upper: 1.90
         # ~11 Nm static with the shaker; 120 Nm is a simulation tuning
-        # value — the distal pitch servos need the same tracking margin as
-        # the wrist to avoid gravity sag during the clamp slide.
+        # value with the same tracking margin as the wrist.
         effort: 120.0
         velocity: 1.2
     link_lengths:
@@ -133,8 +132,9 @@ robotar:
     shaker:
       name: shaker
       # First-prototype mass target (simulation tuning value). Heavier tools
-      # pushed the wrist_pitch velocity servo past its authority during the
-      # clamp slide and sagged the joint onto its limit.
+      # were suspected of overpowering the wrist servo during the clamp
+      # slide; the actual cause was tool/olive contact wedging the arm (see
+      # jaw_length below and DEVELOPMENT_LOG 2026-10-21).
       mass: 3.2
       # Housing box in the tool0 frame; the tool extends along tool0 +z and
       # the jaws protrude beyond the housing top face.
@@ -164,7 +164,16 @@ robotar:
         # branch of radius r is r + pad_face_offset (minus interference).
         pad_face_offset: 0.022
         pad_size: [0.07, 0.012, 0.07]   # along branch x, across y, vertical z
-        jaw_length: 0.12                # plate extension along +z
+        # Long hook jaws (simulation tuning value): the pads reach the branch
+        # while the bulky housing stays BELOW the olive cluster hanging around
+        # the target branch — with jaw_length 0.12 the housing penetrated
+        # olives by ~1 cm along the slide corridor; the olives are welded to
+        # the tree until detach, so the contact wedged the arm and aborted
+        # every trajectory into the cluster (DART contact constraints starve
+        # the joint servos in the coupled solve). 0.30 keeps every tool
+        # collision >= 1 cm clear of olives/branch along the swept mission
+        # path (verified by swept-path FK checks).
+        jaw_length: 0.30                # plate extension along +z
         # Clamp force limit proxy for the GripperActionController (Ji et al.
         # force-limited grasping to avoid biological damage); tuning value.
         max_effort: 60.0
@@ -203,12 +212,14 @@ control:
   #   vel_cmd = position_proportional_gain * update_rate * position_error
   # (one scalar for every position-commanded joint, emitted as the SDF
   # <position_proportional_gain> plugin element by inc/ros2_control.xacro).
-  # The plugin default (0.1) let the wrist pitch joint get flung ~0.15 rad
-  # past its goal into the URDF limit latch during the fast approach swing
-  # with the 4 kg shaker mounted; 0.3 triples the servo stiffness so the
-  # wrist joints hold and recover inside the trajectory window. Simulation
-  # tuning value, not a hardware servo rating.
-  position_proportional_gain: 0.3
+  # This is the ONLY position-servo gain the Jazzy GazeboSimSystem supports
+  # (verified in the gz_ros2_control jazzy source; there are no per-joint
+  # PID parameters). 0.05 is a simulation tuning value, not a hardware servo
+  # rating: a soft law keeps commanded velocities gentle near the joint
+  # limits (DART latches joints driven onto their limits), and clean
+  # single-segment trajectory tracking was verified at this value in
+  # isolation (see DEVELOPMENT_LOG 2026-10-21).
+  position_proportional_gain: 0.05
   controllers:
     joint_states: joint_state_broadcaster
     drive: drive_controller
